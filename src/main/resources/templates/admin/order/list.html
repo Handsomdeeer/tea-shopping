@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订单管理 - 潮茶商城</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <div class="admin-logo">🍵 潮茶商城后台</div>
+            <ul class="admin-menu">
+                <li><a href="/admin/dashboard">📊 数据统计</a></li>
+                <li><a href="/admin/category/list">🏷️ 分类管理</a></li>
+                <li><a href="/admin/product/list">📦 商品管理</a></li>
+                <li><a href="/admin/order/list" class="active">📋 订单管理</a></li>
+                <li><a href="/admin/payment">💳 支付配置</a></li>
+                <li><a href="/admin/banner/list">🖼️ 图片管理</a></li>
+                <li><a href="/admin/admin">👤 管理员管理</a></li>
+                <li><a href="javascript:void(0)" onclick="logout()">🚪 退出登录</a></li>
+            </ul>
+        </aside>
+        <div class="admin-main">
+            <div class="admin-header">
+                <h2>订单管理</h2>
+            </div>
+
+            <div class="category-nav" style="margin-bottom:20px;">
+                <div class="category-list">
+                    <button class="category-item active" data-status="" onclick="filterStatus('',this)">全部</button>
+                    <button class="category-item" data-status="0" onclick="filterStatus(0,this)">待付款</button>
+                    <button class="category-item" data-status="1" onclick="filterStatus(1,this)">待发货</button>
+                    <button class="category-item" data-status="2" onclick="filterStatus(2,this)">待收货</button>
+                    <button class="category-item" data-status="3" onclick="filterStatus(3,this)">已完成</button>
+                    <button class="category-item" data-status="4" onclick="filterStatus(4,this)">已取消</button>
+                </div>
+            </div>
+
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>订单号</th>
+                            <th>收货人</th>
+                            <th>商品</th>
+                            <th>实付金额</th>
+                            <th>状态</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="order-tbody"></tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <!-- 发货模态框 -->
+    <div class="modal-overlay" id="ship-modal" style="display:none;">
+        <div class="modal-content" style="max-width:400px;">
+            <div class="modal-header">
+                <h3>订单发货</h3>
+                <button class="modal-close" onclick="closeShipModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">物流公司</label>
+                    <input type="text" class="form-control" id="ship-company" placeholder="如：顺丰速运" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">物流单号</label>
+                    <input type="text" class="form-control" id="ship-no" placeholder="请输入物流单号" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeShipModal()">取消</button>
+                <button class="btn btn-primary" onclick="doShip()">确认发货</button>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        if (!isLoggedIn()) location.href = '/admin/login';
+
+        let currentPage = 1;
+        let pageSize = 10;
+        let currentStatus = '';
+        let shippingOrderId = null;
+
+        async function loadOrders() {
+            const tbody = document.getElementById('order-tbody');
+            try {
+                let url = '/orders?pageNum=' + currentPage + '&pageSize=' + pageSize;
+                if (currentStatus !== '') url += '&status=' + currentStatus;
+                const data = await get(url);
+                const page = data.data;
+                tbody.innerHTML = '';
+
+                page.list.forEach(o => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${o.orderId}<br><span style="font-size:12px;color:#999;">${o.orderNo || ''}</span></td>
+                        <td>${o.receiverName || '-'}<br><span style="font-size:12px;color:#999;">${o.receiverPhone || ''}</span></td>
+                        <td>
+                            ${o.productList ? o.productList.map(p => `
+                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                                    <img src="${p.productImage || '/images/default.jpg'}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;">
+                                    <span style="font-size:13px;">${p.productName} x${p.quantity}</span>
+                                </div>
+                            `).join('') : '-'}
+                        </td>
+                        <td style="color:#e74c3c;font-weight:600;">${formatPrice(o.payAmount)}</td>
+                        <td><span class="status-tag ${orderStatusClass(o.status)}">${o.statusText}</span></td>
+                        <td style="font-size:13px;color:#666;">${o.createTime}</td>
+                        <td class="actions">
+                            ${o.status === 1 ? `<button class="btn btn-sm btn-primary" onclick="openShipModal('${o.orderId}')">发货</button>` : ''}
+                            <a href="/order/detail?orderId=${o.orderId}" class="btn btn-sm btn-secondary" target="_blank">详情</a>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                renderPagination(page.total, page.pageNum, page.pageSize);
+            } catch (e) {}
+        }
+
+        function filterStatus(status, btn) {
+            currentStatus = status;
+            currentPage = 1;
+            document.querySelectorAll('.category-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadOrders();
+        }
+
+        function openShipModal(orderId) {
+            shippingOrderId = orderId;
+            document.getElementById('ship-modal').style.display = 'flex';
+        }
+
+        function closeShipModal() {
+            shippingOrderId = null;
+            document.getElementById('ship-modal').style.display = 'none';
+            document.getElementById('ship-company').value = '';
+            document.getElementById('ship-no').value = '';
+        }
+
+        async function doShip() {
+            const company = document.getElementById('ship-company').value;
+            const no = document.getElementById('ship-no').value;
+            if (!company || !no) {
+                showToast('请填写物流信息', 'error');
+                return;
+            }
+            try {
+                await put('/admin/orders/' + shippingOrderId + '/ship', {
+                    logisticsCompany: company,
+                    logisticsNo: no
+                });
+                showToast('发货成功');
+                closeShipModal();
+                loadOrders();
+            } catch (e) {}
+        }
+
+        function renderPagination(total, pageNum, pageSize) {
+            const totalPages = Math.ceil(total / pageSize);
+            const el = document.getElementById('pagination');
+            let html = '';
+            if (pageNum > 1) html += `<a onclick="goPage(${pageNum - 1})">上一页</a>`;
+            else html += `<span class="disabled">上一页</span>`;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === pageNum) html += `<span class="current">${i}</span>`;
+                else if (i <= 3 || i > totalPages - 3 || Math.abs(i - pageNum) <= 1) html += `<a onclick="goPage(${i})">${i}</a>`;
+                else if (Math.abs(i - pageNum) === 2) html += `<span>...</span>`;
+            }
+            if (pageNum < totalPages) html += `<a onclick="goPage(${pageNum + 1})">下一页</a>`;
+            else html += `<span class="disabled">下一页</span>`;
+            el.innerHTML = html;
+        }
+
+        function goPage(page) {
+            currentPage = page;
+            loadOrders();
+        }
+
+        loadOrders();
+    </script>
+</body>
+</html>

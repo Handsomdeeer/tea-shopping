@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - 潮茶商城</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <div class="admin-logo">🍵 潮茶商城后台</div>
+            <ul class="admin-menu">
+                <li><a href="/admin/dashboard" class="active">📊 数据统计</a></li>
+                <li><a href="/admin/category/list">🏷️ 分类管理</a></li>
+                <li><a href="/admin/product/list">📦 商品管理</a></li>
+                <li><a href="/admin/order/list">📋 订单管理</a></li>
+                <li><a href="/admin/payment">💳 支付配置</a></li>
+                <li><a href="/admin/banner/list">🖼️ 图片管理</a></li>
+                <li><a href="/admin/admin">👤 管理员管理</a></li>
+                <li><a href="javascript:void(0)" onclick="logout()">🚪 退出登录</a></li>
+            </ul>
+        </aside>
+        <div class="admin-main">
+            <div class="admin-header">
+                <h2>数据概览</h2>
+                <div style="font-size:14px;color:#666;">欢迎回来，<span id="admin-name">管理员</span></div>
+            </div>
+
+            <div class="stat-cards" id="stat-cards">
+                <div class="stat-card">
+                    <div class="stat-label">今日销售额</div>
+                    <div class="stat-value" id="stat-sales">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">今日订单</div>
+                    <div class="stat-value" id="stat-orders">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">注册用户</div>
+                    <div class="stat-value" id="stat-users">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">商品总数</div>
+                    <div class="stat-value" id="stat-products">--</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">销售趋势</h3>
+                    <div id="chart-area" style="height:300px;display:flex;align-items:center;justify-content:center;color:#999;">
+                        图表区域（可集成 Chart.js）
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        if (!isLoggedIn()) location.href = '/admin/login';
+        const user = getUser();
+        if (user) document.getElementById('admin-name').textContent = user.username;
+
+        let salesChart = null;
+
+        async function loadStats() {
+            const end = new Date().toISOString().split('T')[0];
+            const start = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+            try {
+                const data = await get('/admin/statistics?startDate=' + start + '&endDate=' + end);
+                const s = data.data;
+                const sales = parseFloat(s.totalSales) || 0;
+                document.getElementById('stat-sales').textContent = '¥' + sales.toFixed(2);
+                document.getElementById('stat-orders').textContent = s.totalOrders || 0;
+                document.getElementById('stat-users').textContent = s.totalUsers || 0;
+                document.getElementById('stat-products').textContent = s.totalProducts || 0;
+
+                if (s.trend && s.trend.length > 0) {
+                    renderChart(s.trend);
+                }
+            } catch (e) {}
+        }
+
+        function renderChart(trend) {
+            const ctx = document.getElementById('chart-area');
+            if (salesChart) {
+                salesChart.destroy();
+            }
+            ctx.innerHTML = '<canvas id="salesCanvas"></canvas>';
+            const canvas = document.getElementById('salesCanvas');
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+
+            const labels = trend.map(item => item.date);
+            const salesData = trend.map(item => parseFloat(item.sales) || 0);
+            const ordersData = trend.map(item => item.orders || 0);
+
+            salesChart = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '销售额（元）',
+                            data: salesData,
+                            borderColor: '#2e7d32',
+                            backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '订单数',
+                            data: ordersData,
+                            borderColor: '#ff9800',
+                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                            fill: false,
+                            tension: 0.3,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: '销售额（元）' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: '订单数' }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top' }
+                    }
+                }
+            });
+        }
+
+        loadStats();
+    </script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('我的订单')"></head>
+<body>
+    <header th:replace="fragments/header :: header"></header>
+
+    <main class="main-content">
+        <div class="container" style="max-width:900px;">
+            <h2 style="margin-bottom:20px;">我的订单</h2>
+
+            <!-- 状态筛选 -->
+            <div class="category-nav" style="margin-bottom:20px;">
+                <div class="category-list">
+                    <button class="category-item active" data-status="" onclick="filterStatus('',this)">全部</button>
+                    <button class="category-item" data-status="0" onclick="filterStatus(0,this)">待付款</button>
+                    <button class="category-item" data-status="1" onclick="filterStatus(1,this)">待发货</button>
+                    <button class="category-item" data-status="2" onclick="filterStatus(2,this)">待收货</button>
+                    <button class="category-item" data-status="3" onclick="filterStatus(3,this)">已完成</button>
+                </div>
+            </div>
+
+            <div class="order-list" id="order-list"></div>
+
+            <div class="empty-state" id="empty-state" style="display:none">
+                <div class="empty-icon">📋</div>
+                <p>暂无订单</p>
+            </div>
+
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </main>
+
+    <footer th:replace="fragments/header :: footer"></footer>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script th:replace="fragments/header :: scripts"></script>
+    <script>
+        let currentPage = 1;
+        let pageSize = 10;
+        let currentStatus = '';
+
+        if (!isLoggedIn()) {
+            location.href = '/login?redirect=/order/list';
+        }
+
+        async function loadOrders() {
+            const list = document.getElementById('order-list');
+            const empty = document.getElementById('empty-state');
+            list.innerHTML = '<div style="text-align:center;padding:40px;"><div class="loading"></div></div>';
+
+            try {
+                const user = getUser();
+                let url = '/orders?pageNum=' + currentPage + '&pageSize=' + pageSize;
+                if (user && user.id) url += '&userId=' + user.id;
+                if (currentStatus !== '') url += '&status=' + currentStatus;
+
+                const data = await get(url);
+                const page = data.data;
+                list.innerHTML = '';
+
+                if (!page.list || page.list.length === 0) {
+                    empty.style.display = 'block';
+                    document.getElementById('pagination').innerHTML = '';
+                    return;
+                }
+                empty.style.display = 'none';
+
+                page.list.forEach(o => {
+                    const card = document.createElement('div');
+                    card.className = 'order-card';
+                    card.innerHTML = `
+                        <div class="order-header">
+                            <div>
+                                <span class="order-no">${o.orderId}</span>
+                                <span style="color:#999;font-size:13px;margin-left:12px;">${o.createTime}</span>
+                            </div>
+                            <span class="order-status ${orderStatusClass(o.status)}">${o.statusText}</span>
+                        </div>
+                        <div class="order-items">
+                            ${o.productList.map(p => `
+                                <div class="order-item">
+                                    <img src="${p.productImage || '/images/default.jpg'}" alt="">
+                                    <div class="item-info">
+                                        <div class="item-name">${p.productName}</div>
+                                        <div class="item-price">${formatPrice(p.price)} x ${p.quantity}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="order-footer">
+                            <div class="order-total">共 ${o.productList.length} 件商品，实付 <strong>${formatPrice(o.payAmount)}</strong></div>
+                            <div class="order-actions">
+                                ${renderActions(o)}
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+
+                renderPagination(page.total, page.pageNum, page.pageSize);
+            } catch (e) {
+                list.innerHTML = '';
+                empty.style.display = 'block';
+            }
+        }
+
+        function renderActions(o) {
+            let html = '<a href="/order/detail?orderId=' + o.orderId + '" class="btn btn-sm btn-secondary">查看详情</a>';
+            if (o.status === 0) {
+                html += '<a href="/order/pay?orderId=' + o.orderId + '" class="btn btn-sm btn-primary">去支付</a>';
+                html += '<button class="btn btn-sm btn-danger" onclick="cancelOrder(\'' + o.orderId + '\')">取消</button>';
+            } else if (o.status === 2) {
+                html += '<button class="btn btn-sm btn-primary" onclick="confirmReceive(\'' + o.orderId + '\')">确认收货</button>';
+            } else if (o.status === 3) {
+                html += '<a href="/review?orderId=' + o.orderId + '" class="btn btn-sm btn-secondary">评价</a>';
+            }
+            return html;
+        }
+
+        async function cancelOrder(orderId) {
+            if (!await confirmDialog('确定取消该订单吗？')) return;
+            try {
+                await put('/orders/' + orderId + '/cancel', { reason: '用户取消' });
+                showToast('订单已取消');
+                loadOrders();
+            } catch (e) {}
+        }
+
+        async function confirmReceive(orderId) {
+            if (!await confirmDialog('确认已收到商品吗？')) return;
+            try {
+                await put('/orders/' + orderId + '/confirm', {});
+                showToast('确认收货成功');
+                loadOrders();
+            } catch (e) {}
+        }
+
+        function filterStatus(status, btn) {
+            currentStatus = status;
+            currentPage = 1;
+            document.querySelectorAll('.category-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadOrders();
+        }
+
+        function renderPagination(total, pageNum, pageSize) {
+            const totalPages = Math.ceil(total / pageSize);
+            const el = document.getElementById('pagination');
+            let html = '';
+            if (pageNum > 1) html += `<a onclick="goPage(${pageNum - 1})">上一页</a>`;
+            else html += `<span class="disabled">上一页</span>`;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === pageNum) html += `<span class="current">${i}</span>`;
+                else if (i <= 3 || i > totalPages - 3 || Math.abs(i - pageNum) <= 1) html += `<a onclick="goPage(${i})">${i}</a>`;
+                else if (Math.abs(i - pageNum) === 2) html += `<span>...</span>`;
+            }
+            if (pageNum < totalPages) html += `<a onclick="goPage(${pageNum + 1})">下一页</a>`;
+            else html += `<span class="disabled">下一页</span>`;
+            el.innerHTML = html;
+        }
+
+        function goPage(page) {
+            currentPage = page;
+            loadOrders();
+        }
+
+        loadOrders();
+    </script>
+</body>
+</html>

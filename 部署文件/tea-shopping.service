@@ -1,0 +1,16 @@
+[Unit]
+Description=Tea Shopping Application
+After=syslog.target network.target
+
+[Service]
+User=root
+Type=simple
+ExecStart=/usr/bin/java -jar /opt/tea-shopping/tea-shopping-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=tea-shopping
+
+[Install]
+WantedBy=multi-user.target

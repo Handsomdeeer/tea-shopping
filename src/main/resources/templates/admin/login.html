@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('管理员登录')"></head>
+<body style="background:#1a2f1c;">
+    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
+        <div class="auth-box" style="max-width:400px;width:100%;">
+            <h2 style="text-align:center;color:var(--primary-dark);margin-bottom:30px;">潮茶商城 - 管理后台</h2>
+            <form id="login-form" onsubmit="return handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">管理员账号</label>
+                    <input type="text" class="form-control" id="username" placeholder="请输入账号" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-control" id="password" placeholder="请输入密码" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg" style="width:100%">登录</button>
+            </form>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+
+            try {
+                const data = await post('/admin/login', {
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value
+                });
+
+                const user = data.data;
+                localStorage.setItem('token', user.token);
+                localStorage.setItem('user', JSON.stringify(user));
+                showToast('登录成功');
+                setTimeout(() => location.href = '/admin/dashboard', 1000);
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = '登录';
+            }
+            return false;
+        }
+    </script>
+</body>
+</html>

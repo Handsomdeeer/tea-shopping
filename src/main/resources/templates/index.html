@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('首页')"></head>
+<body>
+    <header th:replace="fragments/header :: header"></header>
+
+    <!-- 轮播图 -->
+    <div class="hero-slider" id="hero-slider">
+        <div class="slider-container" id="slider-container"></div>
+        <div class="slider-dots" id="slider-dots"></div>
+        <button class="slider-btn slider-prev" onclick="changeSlide(-1)">❮</button>
+        <button class="slider-btn slider-next" onclick="changeSlide(1)">❯</button>
+    </div>
+
+    <main class="main-content">
+        <!-- 品牌特色 -->
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">品牌特色</h2>
+                <p class="section-subtitle">传承千年茶文化，匠心制每一杯好茶</p>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🌿</div>
+                    <h3>原产地直供</h3>
+                    <p>深入核心产区，与茶农直接合作，确保每一片茶叶都来自最佳生长环境</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🏺</div>
+                    <h3>传统制茶工艺</h3>
+                    <p>坚持古法手工制茶，历经杀青、揉捻、干燥等十余道工序，保留茶之真味</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">✓</div>
+                    <h3>严苛品质把控</h3>
+                    <p>每一批茶叶均经过专业审评师品鉴，符合国家食品安全标准，让您喝得放心</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 热门商品 -->
+        <div class="container" id="products">
+            <div class="section-header">
+                <h2 class="section-title">热门推荐</h2>
+                <p class="section-subtitle">精选优质茶品，品味自然之韵</p>
+            </div>
+
+            <!-- 分类导航 -->
+            <div class="category-nav">
+                <div class="category-list" id="category-list">
+                    <button class="category-item active" data-id="" onclick="selectCategory('', this)">全部</button>
+                </div>
+            </div>
+
+            <!-- 商品列表 -->
+            <div class="product-grid" id="product-grid">
+                <!-- 动态加载 -->
+            </div>
+
+            <div class="empty-state" id="empty-state" style="display:none">
+                <div class="empty-icon">🍵</div>
+                <p>暂无商品</p>
+            </div>
+
+            <!-- 分页 -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+
+        <!-- 品牌故事 -->
+        <div class="brand-story">
+            <div class="container">
+                <div class="story-content">
+                    <div class="story-text">
+                        <h2>关于潮茶</h2>
+                        <p>潮茶有限公司创立于广东省揭阳市，秉承"以茶会友，以诚待人"的经营理念，致力于将中国传统茶文化推向世界。</p>
+                        <p>我们深入云南普洱、福建武夷、浙江龙井等核心产区，与当地茶农建立长期合作关系，从源头把控茶叶品质。</p>
+                        <p>多年来，潮茶已累计服务超过百万茶友，成为众多茶叶爱好者信赖的品牌。我们相信，一杯好茶，不仅是味蕾的享受，更是生活态度的体现。</p>
+                        <a href="/product/list" class="btn btn-primary">查看更多商品</a>
+                    </div>
+                    <div class="story-image" id="story-image">
+                        <div style="width:100%;height:300px;background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#2d8a5e;font-size:18px;">
+                            茶园风光
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="fragments/header :: footer"></footer>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script th:replace="fragments/header :: scripts"></script>
+    <script>
+        let currentPage = 1;
+        let pageSize = 12;
+        let currentCategory = '';
+        let currentSlide = 0;
+        let slideInterval;
+
+        // 加载轮播图
+        async function loadBanners() {
+            const container = document.getElementById('slider-container');
+            try {
+                const data = await get('/banners');
+                const banners = data.data;
+
+                if (banners && banners.length > 0) {
+                    container.innerHTML = '';
+                    banners.forEach((b, idx) => {
+                        const slide = document.createElement('div');
+                        slide.className = 'slide' + (idx === 0 ? ' active' : '');
+                        slide.style.cssText = 'background-image: url(' + b.imageUrl + '); background-size: cover; background-position: center;';
+                        slide.innerHTML = `
+                            <div style="position:absolute;inset:0;background:rgba(0,0,0,0.35);"></div>
+                            <div class="slide-content" style="position:relative;z-index:2;">
+                                <h2>${b.name}</h2>
+                                <a href="#products" class="btn btn-primary btn-lg">探索好茶</a>
+                            </div>
+                        `;
+                        container.appendChild(slide);
+                    });
+                } else {
+                    renderDefaultBanners();
+                }
+            } catch (e) {
+                renderDefaultBanners();
+            }
+            initSlider();
+        }
+
+        function renderDefaultBanners() {
+            const container = document.getElementById('slider-container');
+            container.innerHTML = `
+                <div class="slide active" style="background: linear-gradient(135deg, #2d8a5e 0%, #1e6b47 100%);">
+                    <div class="slide-content">
+                        <h2>源自千年茶乡</h2>
+                        <p>潮茶，甄选原产地好茶，传承古法工艺<br>让每一杯茶都饱含自然的馈赠</p>
+                        <a href="#products" class="btn btn-primary btn-lg">探索好茶</a>
+                    </div>
+                </div>
+                <div class="slide" style="background: linear-gradient(135deg, #8b6914 0%, #6b4f0a 100%);">
+                    <div class="slide-content">
+                        <h2>匠心制茶工艺</h2>
+                        <p>从采摘到烘焙，每一道工序都精益求精<br>只为呈现茶叶最本真的风味</p>
+                        <a href="#products" class="btn btn-primary btn-lg">了解工艺</a>
+                    </div>
+                </div>
+                <div class="slide" style="background: linear-gradient(135deg, #4a7c59 0%, #2d5a3d 100%);">
+                    <div class="slide-content">
+                        <h2>品味生活美学</h2>
+                        <p>一盏清茶，一份闲适<br>潮茶与您共享慢生活的美好时光</p>
+                        <a href="#products" class="btn btn-primary btn-lg">立即选购</a>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 加载品牌故事广告图
+        async function loadAdImages() {
+            const container = document.getElementById('story-image');
+            try {
+                const data = await get('/banners/ad');
+                const ads = data.data;
+                if (ads && ads.length > 0) {
+                    const ad = ads[0];
+                    container.innerHTML = '<img src="' + ad.imageUrl + '" alt="' + (ad.name || '广告') + '" style="width:100%;height:300px;object-fit:cover;border-radius:12px;">';
+                }
+            } catch (e) {}
+        }
+
+        // 轮播图
+        function initSlider() {
+            const slides = document.querySelectorAll('.slide');
+            const dotsContainer = document.getElementById('slider-dots');
+            if (!slides.length || !dotsContainer) return;
+
+            dotsContainer.innerHTML = '';
+            slides.forEach((_, idx) => {
+                const dot = document.createElement('span');
+                dot.className = 'slider-dot' + (idx === 0 ? ' active' : '');
+                dot.onclick = () => goToSlide(idx);
+                dotsContainer.appendChild(dot);
+            });
+
+            startSlideAuto();
+        }
+
+        function changeSlide(dir) {
+            const slides = document.querySelectorAll('.slide');
+            if (!slides.length) return;
+            currentSlide = (currentSlide + dir + slides.length) % slides.length;
+            updateSlider();
+            resetSlideAuto();
+        }
+
+        function goToSlide(idx) {
+            currentSlide = idx;
+            updateSlider();
+            resetSlideAuto();
+        }
+
+        function updateSlider() {
+            const slides = document.querySelectorAll('.slide');
+            const dots = document.querySelectorAll('.slider-dot');
+            slides.forEach((s, i) => s.classList.toggle('active', i === currentSlide));
+            dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+        }
+
+        function startSlideAuto() {
+            slideInterval = setInterval(() => changeSlide(1), 5000);
+        }
+
+        function resetSlideAuto() {
+            clearInterval(slideInterval);
+            startSlideAuto();
+        }
+
+        // 加载分类
+        async function loadCategories() {
+            try {
+                const data = await get('/categories');
+                const list = document.getElementById('category-list');
+                data.data.forEach(cat => {
+                    const btn = document.createElement('button');
+                    btn.className = 'category-item';
+                    btn.dataset.id = cat.id;
+                    btn.textContent = cat.name;
+                    btn.onclick = () => selectCategory(cat.id, btn);
+                    list.appendChild(btn);
+                });
+            } catch (e) {}
+        }
+
+        function selectCategory(id, btn) {
+            currentCategory = id;
+            currentPage = 1;
+            document.querySelectorAll('.category-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadProducts();
+        }
+
+        // 加载商品
+        async function loadProducts() {
+            const grid = document.getElementById('product-grid');
+            const empty = document.getElementById('empty-state');
+            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;"><div class="loading"></div></div>';
+
+            try {
+                let url = '/products?pageNum=' + currentPage + '&pageSize=' + pageSize;
+                if (currentCategory) url += '&categoryId=' + currentCategory;
+
+                const data = await get(url);
+                const page = data.data;
+
+                grid.innerHTML = '';
+                if (!page.list || page.list.length === 0) {
+                    empty.style.display = 'block';
+                    document.getElementById('pagination').innerHTML = '';
+                    return;
+                }
+                empty.style.display = 'none';
+
+                page.list.forEach(p => {
+                    const card = document.createElement('div');
+                    card.className = 'product-card';
+                    card.onclick = () => location.href = '/product/detail?id=' + p.id;
+                    card.innerHTML = `
+                        <img class="product-image" src="${p.imageUrl || '/images/default.jpg'}" alt="${p.name}">
+                        <div class="product-info">
+                            <div class="product-name">${p.name}</div>
+                            <div class="product-desc">${p.description || ''}</div>
+                            <div class="product-price">
+                                <span class="price">${formatPrice(p.price)}</span>
+                                ${p.originalPrice ? '<span class="original-price">' + formatPrice(p.originalPrice) + '</span>' : ''}
+                            </div>
+                            <div class="product-sales">已售 ${p.sales || 0} 件</div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+
+                renderPagination(page.total, page.pageNum, page.pageSize);
+            } catch (e) {
+                grid.innerHTML = '';
+                empty.style.display = 'block';
+            }
+        }
+
+        function renderPagination(total, pageNum, pageSize) {
+            const totalPages = Math.ceil(total / pageSize);
+            const el = document.getElementById('pagination');
+            let html = '';
+
+            if (pageNum > 1) {
+                html += `<a onclick="goPage(${pageNum - 1})">上一页</a>`;
+            } else {
+                html += `<span class="disabled">上一页</span>`;
+            }
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === pageNum) {
+                    html += `<span class="current">${i}</span>`;
+                } else if (i <= 3 || i > totalPages - 3 || Math.abs(i - pageNum) <= 1) {
+                    html += `<a onclick="goPage(${i})">${i}</a>`;
+                } else if (Math.abs(i - pageNum) === 2) {
+                    html += `<span>...</span>`;
+                }
+            }
+
+            if (pageNum < totalPages) {
+                html += `<a onclick="goPage(${pageNum + 1})">下一页</a>`;
+            } else {
+                html += `<span class="disabled">下一页</span>`;
+            }
+
+            el.innerHTML = html;
+        }
+
+        function goPage(page) {
+            currentPage = page;
+            loadProducts();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        loadBanners();
+        loadAdImages();
+        loadCategories();
+        loadProducts();
+    </script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付配置 - 潮茶商城</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <div class="admin-logo">🍵 潮茶商城后台</div>
+            <ul class="admin-menu">
+                <li><a href="/admin/dashboard">📊 数据统计</a></li>
+                <li><a href="/admin/category/list">🏷️ 分类管理</a></li>
+                <li><a href="/admin/product/list">📦 商品管理</a></li>
+                <li><a href="/admin/order/list">📋 订单管理</a></li>
+                <li><a href="/admin/payment" class="active">💳 支付配置</a></li>
+                <li><a href="/admin/banner/list">🖼️ 图片管理</a></li>
+                <li><a href="/admin/admin">👤 管理员管理</a></li>
+                <li><a href="javascript:void(0)" onclick="logout()">🚪 退出登录</a></li>
+            </ul>
+        </aside>
+        <div class="admin-main">
+            <div class="admin-header">
+                <h2>支付配置</h2>
+            </div>
+
+            <div class="card" style="max-width:600px;">
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="form-label">微信支付二维码</label>
+                        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:8px;">
+                            <input type="file" id="wechat-file" accept="image/*" style="display:none;" onchange="handleUpload('wechat', this)">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('wechat-file').click()">选择图片</button>
+                            <img id="wechat-preview" src="" style="width:120px;height:120px;object-fit:cover;border-radius:8px;display:none;border:1px solid #ddd;">
+                        </div>
+                        <input type="hidden" id="wechat-qrcode">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">支付宝支付二维码</label>
+                        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:8px;">
+                            <input type="file" id="alipay-file" accept="image/*" style="display:none;" onchange="handleUpload('alipay', this)">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('alipay-file').click()">选择图片</button>
+                            <img id="alipay-preview" src="" style="width:120px;height:120px;object-fit:cover;border-radius:8px;display:none;border:1px solid #ddd;">
+                        </div>
+                        <input type="hidden" id="alipay-qrcode">
+                    </div>
+
+                    <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        if (!isLoggedIn()) location.href = '/admin/login';
+
+        async function loadConfig() {
+            try {
+                const data = await get('/admin/payment-config');
+                const config = data.data;
+                if (config) {
+                    if (config.wechatQrcode) {
+                        document.getElementById('wechat-qrcode').value = config.wechatQrcode;
+                        document.getElementById('wechat-preview').src = config.wechatQrcode;
+                        document.getElementById('wechat-preview').style.display = 'block';
+                    }
+                    if (config.alipayQrcode) {
+                        document.getElementById('alipay-qrcode').value = config.alipayQrcode;
+                        document.getElementById('alipay-preview').src = config.alipayQrcode;
+                        document.getElementById('alipay-preview').style.display = 'block';
+                    }
+                }
+            } catch (e) {}
+        }
+
+        async function handleUpload(type, input) {
+            const file = input.files[0];
+            if (!file) return;
+            try {
+                const data = await upload('/upload/image', file);
+                const url = data.data;
+                document.getElementById(type + '-qrcode').value = url;
+                document.getElementById(type + '-preview').src = url;
+                document.getElementById(type + '-preview').style.display = 'block';
+                showToast('上传成功');
+            } catch (e) {}
+        }
+
+        async function saveConfig() {
+            const body = {
+                wechatQrcode: document.getElementById('wechat-qrcode').value,
+                alipayQrcode: document.getElementById('alipay-qrcode').value
+            };
+            try {
+                await put('/admin/payment-config', body);
+                showToast('保存成功');
+            } catch (e) {}
+        }
+
+        loadConfig();
+    </script>
+</body>
+</html>

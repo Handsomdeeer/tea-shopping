@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('商品详情')"></head>
+<body>
+    <header th:replace="fragments/header :: header"></header>
+
+    <main class="main-content">
+        <div class="container">
+            <div style="margin-bottom:16px;">
+                <a href="/" class="btn btn-sm btn-secondary">← 返回首页</a>
+            </div>
+            <div class="product-detail" id="product-detail">
+                <div class="product-gallery">
+                    <img class="main-image" id="main-image" src="/images/default.jpg" alt="">
+                    <div class="thumb-list" id="thumb-list"></div>
+                </div>
+                <div class="product-info-detail">
+                    <h1 id="product-name">加载中...</h1>
+                    <div class="price-row">
+                        <span class="current-price" id="product-price">--</span>
+                        <span style="color:#999;font-size:14px;margin-left:10px;text-decoration:line-through;" id="original-price"></span>
+                    </div>
+                    <div class="specs" id="specs"></div>
+                    <div class="quantity-selector">
+                        <span style="font-size:14px;">数量</span>
+                        <button class="qty-btn" onclick="changeQty(-1)">-</button>
+                        <input type="number" class="qty-input" id="quantity" value="1" min="1">
+                        <button class="qty-btn" onclick="changeQty(1)">+</button>
+                        <span style="font-size:13px;color:#999;margin-left:10px;" id="stock-info"></span>
+                    </div>
+                    <div class="action-btns">
+                        <button class="btn btn-secondary btn-lg" onclick="addToCart()">加入购物车</button>
+                        <button class="btn btn-primary btn-lg" onclick="buyNow()">立即购买</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 商品评价 -->
+            <div class="card" style="margin-top:30px;">
+                <div class="card-body">
+                    <h3 class="card-title">商品评价</h3>
+                    <div id="review-summary" style="margin-bottom:16px;"></div>
+                    <div class="review-list" id="review-list"></div>
+                    <div class="pagination" id="review-pagination"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="fragments/header :: footer"></footer>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script th:replace="fragments/header :: scripts"></script>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const productId = params.get('id');
+        let product = null;
+        let reviewPage = 1;
+
+        async function loadProduct() {
+            if (!productId) return;
+            try {
+                const data = await get('/products/' + productId);
+                product = data.data;
+
+                document.getElementById('product-name').textContent = product.name;
+                document.getElementById('product-price').textContent = formatPrice(product.price);
+                document.getElementById('original-price').textContent = product.originalPrice ? formatPrice(product.originalPrice) : '';
+                document.getElementById('stock-info').textContent = '库存 ' + (product.stock || 0) + ' 件';
+
+                if (product.imageUrl) {
+                    document.getElementById('main-image').src = product.imageUrl;
+                }
+
+                // 缩略图
+                const thumbList = document.getElementById('thumb-list');
+                if (product.images && product.images.length > 0) {
+                    product.images.forEach((img, idx) => {
+                        const el = document.createElement('img');
+                        el.src = img;
+                        el.className = idx === 0 ? 'active' : '';
+                        el.onclick = () => {
+                            document.getElementById('main-image').src = img;
+                            document.querySelectorAll('.thumb-list img').forEach(i => i.classList.remove('active'));
+                            el.classList.add('active');
+                        };
+                        thumbList.appendChild(el);
+                    });
+                }
+
+                // 规格
+                const specsEl = document.getElementById('specs');
+                if (product.specifications) {
+                    product.specifications.forEach(s => {
+                        const div = document.createElement('div');
+                        div.className = 'spec-item';
+                        div.innerHTML = `<span class="spec-label">${s.name}</span><span>${s.value}</span>`;
+                        specsEl.appendChild(div);
+                    });
+                }
+                const ratingDiv = document.createElement('div');
+                ratingDiv.className = 'spec-item';
+                ratingDiv.innerHTML = `<span class="spec-label">评分</span><span style="color:#c9a227;">${renderStars(product.rating || 0)} ${product.rating || 0}分 (${product.reviewCount || 0}条评价)</span>`;
+                specsEl.appendChild(ratingDiv);
+
+                loadReviews();
+            } catch (e) {
+                document.getElementById('product-name').textContent = '商品加载失败';
+            }
+        }
+
+        function changeQty(delta) {
+            const input = document.getElementById('quantity');
+            let val = parseInt(input.value) + delta;
+            if (val < 1) val = 1;
+            if (product && val > product.stock) val = product.stock;
+            input.value = val;
+        }
+
+        async function addToCart() {
+            if (!isLoggedIn()) {
+                location.href = '/login?redirect=' + encodeURIComponent(location.pathname + location.search);
+                return;
+            }
+            const qty = parseInt(document.getElementById('quantity').value);
+            const user = getUser();
+            try {
+                await post('/cart', { productId: parseInt(productId), quantity: qty, userId: user ? user.id : null });
+                showToast('已加入购物车');
+                updateCartBadge();
+            } catch (e) {}
+        }
+
+        function buyNow() {
+            if (!isLoggedIn()) {
+                location.href = '/login?redirect=' + encodeURIComponent(location.pathname + location.search);
+                return;
+            }
+            addToCart().then(() => {
+                location.href = '/cart';
+            });
+        }
+
+        async function loadReviews() {
+            try {
+                const data = await get('/products/' + productId + '/reviews?pageNum=' + reviewPage + '&pageSize=5');
+                const result = data.data;
+                const list = document.getElementById('review-list');
+                const summary = document.getElementById('review-summary');
+
+                summary.innerHTML = `<span style="font-size:14px;color:#666;">综合评价 <strong style="color:#e74c3c;font-size:18px;">${result.averageRating || 0}</strong> 分，共 ${result.total || 0} 条评价</span>`;
+
+                list.innerHTML = '';
+                if (!result.list || result.list.length === 0) {
+                    list.innerHTML = '<div class="empty-state" style="padding:30px;"><p>暂无评价</p></div>';
+                    return;
+                }
+
+                result.list.forEach(r => {
+                    const item = document.createElement('div');
+                    item.className = 'review-item';
+                    item.innerHTML = `
+                        <div class="review-avatar">${(r.username || '用').charAt(0)}</div>
+                        <div class="review-body">
+                            <div class="review-header">
+                                <span style="font-weight:500;">${r.username || '匿名用户'}</span>
+                                <span style="color:#999;font-size:13px;">${formatDate(r.createTime)}</span>
+                            </div>
+                            <div class="review-stars">${renderStars(r.rating)}</div>
+                            <div class="review-content">${r.content || ''}</div>
+                            ${r.images && r.images.length > 0 ? '<div class="review-images">' + r.images.map(img => `<img src="${img}" alt="">`).join('') + '</div>' : ''}
+                            ${r.reply ? '<div class="review-reply">商家回复：' + r.reply + '</div>' : ''}
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (e) {}
+        }
+
+        loadProduct();
+    </script>
+</body>
+</html>

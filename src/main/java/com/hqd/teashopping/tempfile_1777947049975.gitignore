@@ -1,0 +1,84 @@
+NEW_FILE_CODE
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE - Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# IDE - VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+*.out
+
+# Environment
+application-local.properties
+*.env
+.env.local
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+*.temp
+
+# Compiled class files
+*.class
+
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Spring Boot
+spring-boot-devtools.properties
+
+# Database
+*.db
+*.sqlite
+*.h2.db
+
+# Upload files (if any)
+uploads/
+static/uploads/
+
+# Test coverage
+coverage/
+*.exec
+jacoco/
+
+# Node modules (if using frontend build tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

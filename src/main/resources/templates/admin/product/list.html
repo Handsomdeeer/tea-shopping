@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品管理 - 潮茶商城</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <div class="admin-logo">🍵 潮茶商城后台</div>
+            <ul class="admin-menu">
+                <li><a href="/admin/dashboard">📊 数据统计</a></li>
+                <li><a href="/admin/category/list">🏷️ 分类管理</a></li>
+                <li><a href="/admin/product/list" class="active">📦 商品管理</a></li>
+                <li><a href="/admin/order/list">📋 订单管理</a></li>
+                <li><a href="/admin/payment">💳 支付配置</a></li>
+                <li><a href="/admin/banner/list">🖼️ 图片管理</a></li>
+                <li><a href="/admin/admin">👤 管理员管理</a></li>
+                <li><a href="javascript:void(0)" onclick="logout()">🚪 退出登录</a></li>
+            </ul>
+        </aside>
+        <div class="admin-main">
+            <div class="admin-header">
+                <h2>商品管理</h2>
+                <a href="/admin/product/form" class="btn btn-primary">+ 添加商品</a>
+            </div>
+
+            <div class="category-nav" style="margin-bottom:20px;">
+                <div class="category-list">
+                    <button class="category-item active" data-status="" onclick="filterStatus('',this)">全部</button>
+                    <button class="category-item" data-status="1" onclick="filterStatus(1,this)">上架</button>
+                    <button class="category-item" data-status="0" onclick="filterStatus(0,this)">下架</button>
+                </div>
+            </div>
+
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>商品图片</th>
+                            <th>商品名称</th>
+                            <th>分类</th>
+                            <th>价格</th>
+                            <th>库存</th>
+                            <th>销量</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-tbody"></tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        if (!isLoggedIn()) location.href = '/admin/login';
+
+        let currentPage = 1;
+        let pageSize = 10;
+        let currentStatus = '';
+
+        async function loadProducts() {
+            const tbody = document.getElementById('product-tbody');
+            try {
+                let url = '/products?pageNum=' + currentPage + '&pageSize=' + pageSize;
+                if (currentStatus !== '') url += '&status=' + currentStatus;
+                const data = await get(url);
+                const page = data.data;
+                tbody.innerHTML = '';
+
+                page.list.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${p.id}</td>
+                        <td><img src="${p.imageUrl || '/images/default.jpg'}" style="width:50px;height:50px;object-fit:cover;border-radius:4px;"></td>
+                        <td>${p.name}</td>
+                        <td>${p.categoryName || '-'}</td>
+                        <td>${formatPrice(p.price)}</td>
+                        <td>${p.stock}</td>
+                        <td>${p.sales}</td>
+                        <td><span class="status-tag ${p.status === 1 ? 'status-completed' : 'status-cancelled'}">${p.status === 1 ? '上架' : '下架'}</span></td>
+                        <td class="actions">
+                            <a href="/admin/product/form?id=${p.id}" class="btn btn-sm btn-secondary">编辑</a>
+                            <button class="btn btn-sm btn-danger" onclick="deleteProduct(${p.id})">删除</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                renderPagination(page.total, page.pageNum, page.pageSize);
+            } catch (e) {}
+        }
+
+        async function deleteProduct(id) {
+            if (!await confirmDialog('确定删除该商品吗？')) return;
+            try {
+                await del('/admin/products/' + id);
+                showToast('删除成功');
+                loadProducts();
+            } catch (e) {}
+        }
+
+        function renderPagination(total, pageNum, pageSize) {
+            const totalPages = Math.ceil(total / pageSize);
+            const el = document.getElementById('pagination');
+            let html = '';
+            if (pageNum > 1) html += `<a onclick="goPage(${pageNum - 1})">上一页</a>`;
+            else html += `<span class="disabled">上一页</span>`;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === pageNum) html += `<span class="current">${i}</span>`;
+                else if (i <= 3 || i > totalPages - 3 || Math.abs(i - pageNum) <= 1) html += `<a onclick="goPage(${i})">${i}</a>`;
+                else if (Math.abs(i - pageNum) === 2) html += `<span>...</span>`;
+            }
+            if (pageNum < totalPages) html += `<a onclick="goPage(${pageNum + 1})">下一页</a>`;
+            else html += `<span class="disabled">下一页</span>`;
+            el.innerHTML = html;
+        }
+
+        function filterStatus(status, btn) {
+            currentStatus = status;
+            currentPage = 1;
+            document.querySelectorAll('.category-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadProducts();
+        }
+
+        function goPage(page) {
+            currentPage = page;
+            loadProducts();
+        }
+
+        loadProducts();
+    </script>
+</body>
+</html>

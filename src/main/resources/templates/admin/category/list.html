@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分类管理 - 潮茶商城</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <div class="admin-logo">🍵 潮茶商城后台</div>
+            <ul class="admin-menu">
+                <li><a href="/admin/dashboard">📊 数据统计</a></li>
+                <li><a href="/admin/category/list" class="active">🏷️ 分类管理</a></li>
+                <li><a href="/admin/product/list">📦 商品管理</a></li>
+                <li><a href="/admin/order/list">📋 订单管理</a></li>
+                <li><a href="/admin/payment">💳 支付配置</a></li>
+                <li><a href="/admin/banner/list">🖼️ 图片管理</a></li>
+                <li><a href="/admin/admin">👤 管理员管理</a></li>
+                <li><a href="javascript:void(0)" onclick="logout()">🚪 退出登录</a></li>
+            </ul>
+        </aside>
+        <div class="admin-main">
+            <div class="admin-header">
+                <h2>分类管理</h2>
+                <button class="btn btn-primary" onclick="openModal()">+ 添加分类</button>
+            </div>
+
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>分类名称</th>
+                            <th>图标</th>
+                            <th>排序</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="category-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分类编辑模态框 -->
+    <div class="modal-overlay" id="category-modal" style="display:none;">
+        <div class="modal-content" style="max-width:400px;">
+            <div class="modal-header">
+                <h3 id="modal-title">添加分类</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="category-id">
+                <div class="form-group">
+                    <label class="form-label">分类名称</label>
+                    <input type="text" class="form-control" id="cat-name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">分类图标</label>
+                    <div style="display:flex;gap:12px;align-items:flex-start;">
+                        <input type="file" id="cat-icon-file" accept="image/*" style="display:none;" onchange="handleIconUpload(this)">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('cat-icon-file').click()">选择图标</button>
+                        <img id="cat-icon-preview" src="" style="width:50px;height:50px;object-fit:cover;border-radius:4px;display:none;border:1px solid #ddd;">
+                    </div>
+                    <input type="hidden" id="cat-icon">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">排序</label>
+                    <input type="number" class="form-control" id="cat-sort" value="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">状态</label>
+                    <select class="form-control" id="cat-status">
+                        <option value="1">启用</option>
+                        <option value="0">禁用</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveCategory()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        if (!isLoggedIn()) location.href = '/admin/login';
+
+        async function loadCategories() {
+            const tbody = document.getElementById('category-tbody');
+            try {
+                const data = await get('/admin/categories');
+                const list = data.data;
+                tbody.innerHTML = '';
+
+                list.forEach(c => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${c.id}</td>
+                        <td>${c.name}</td>
+                        <td><img src="${c.icon || '/images/default.jpg'}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;"></td>
+                        <td>${c.sort}</td>
+                        <td><span class="status-tag ${c.status === 1 ? 'status-completed' : 'status-cancelled'}">${c.status === 1 ? '启用' : '禁用'}</span></td>
+                        <td class="actions">
+                            <button class="btn btn-sm btn-secondary" onclick="editCategory(${c.id}, '${c.name}', '${c.icon || ''}', ${c.sort}, ${c.status})">编辑</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteCategory(${c.id})">删除</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {}
+        }
+
+        function openModal() {
+            document.getElementById('category-id').value = '';
+            document.getElementById('modal-title').textContent = '添加分类';
+            document.getElementById('cat-name').value = '';
+            document.getElementById('cat-icon').value = '';
+            document.getElementById('cat-icon-preview').src = '';
+            document.getElementById('cat-icon-preview').style.display = 'none';
+            document.getElementById('cat-sort').value = '1';
+            document.getElementById('cat-status').value = '1';
+            document.getElementById('category-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('category-modal').style.display = 'none';
+        }
+
+        function editCategory(id, name, icon, sort, status) {
+            document.getElementById('category-id').value = id;
+            document.getElementById('modal-title').textContent = '编辑分类';
+            document.getElementById('cat-name').value = name;
+            document.getElementById('cat-icon').value = icon;
+            if (icon) {
+                document.getElementById('cat-icon-preview').src = icon;
+                document.getElementById('cat-icon-preview').style.display = 'block';
+            } else {
+                document.getElementById('cat-icon-preview').style.display = 'none';
+            }
+            document.getElementById('cat-sort').value = sort;
+            document.getElementById('cat-status').value = status;
+            document.getElementById('category-modal').style.display = 'flex';
+        }
+
+        async function handleIconUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            try {
+                const data = await upload('/upload/image', file);
+                document.getElementById('cat-icon').value = data.data;
+                document.getElementById('cat-icon-preview').src = data.data;
+                document.getElementById('cat-icon-preview').style.display = 'block';
+                showToast('图标上传成功');
+            } catch (e) {}
+        }
+
+        async function saveCategory() {
+            const id = document.getElementById('category-id').value;
+            const body = {
+                name: document.getElementById('cat-name').value,
+                icon: document.getElementById('cat-icon').value,
+                sort: parseInt(document.getElementById('cat-sort').value),
+                status: parseInt(document.getElementById('cat-status').value)
+            };
+
+            try {
+                if (id) {
+                    await put('/admin/categories/' + id, body);
+                } else {
+                    await post('/admin/categories', body);
+                }
+                showToast('保存成功');
+                closeModal();
+                loadCategories();
+            } catch (e) {}
+        }
+
+        async function deleteCategory(id) {
+            if (!await confirmDialog('确定删除该分类吗？')) return;
+            try {
+                await del('/admin/categories/' + id);
+                showToast('删除成功');
+                loadCategories();
+            } catch (e) {}
+        }
+
+        loadCategories();
+    </script>
+</body>
+</html>

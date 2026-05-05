@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('购物车')"></head>
+<body>
+    <header th:replace="fragments/header :: header"></header>
+
+    <main class="main-content">
+        <div class="container">
+            <h2 style="margin-bottom:20px;">购物车</h2>
+
+            <div class="cart-table" id="cart-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:40px;"><input type="checkbox" id="check-all" onclick="toggleCheckAll()"></th>
+                            <th>商品信息</th>
+                            <th style="width:120px;">单价</th>
+                            <th style="width:140px;">数量</th>
+                            <th style="width:120px;">小计</th>
+                            <th style="width:80px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cart-tbody"></tbody>
+                </table>
+            </div>
+
+            <div class="empty-state" id="empty-state" style="display:none">
+                <div class="empty-icon">🛒</div>
+                <p>购物车是空的，<a href="/">去逛逛</a></p>
+            </div>
+
+            <div class="cart-footer" id="cart-footer" style="display:none">
+                <div>
+                    <label style="cursor:pointer;font-size:14px;">
+                        <input type="checkbox" id="check-all-footer" onclick="toggleCheckAll()" style="margin-right:6px;">
+                        全选
+                    </label>
+                    <button class="btn btn-sm btn-danger" onclick="batchDelete()" style="margin-left:20px;">删除选中</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:20px;">
+                    <div class="total">合计：<strong id="total-amount">¥0.00</strong></div>
+                    <button class="btn btn-primary btn-lg" onclick="checkout()">结算</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="fragments/header :: footer"></footer>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script th:replace="fragments/header :: scripts"></script>
+    <script>
+        let cartItems = [];
+
+        async function loadCart() {
+            if (!isLoggedIn()) {
+                location.href = '/login?redirect=/cart';
+                return;
+            }
+            try {
+                const user = getUser();
+                const data = await get('/cart?userId=' + (user ? user.id : ''));
+                cartItems = data.data || [];
+                renderCart();
+            } catch (e) {
+                showCartEmpty();
+            }
+        }
+
+        function renderCart() {
+            const tbody = document.getElementById('cart-tbody');
+            const empty = document.getElementById('empty-state');
+            const table = document.getElementById('cart-table');
+            const footer = document.getElementById('cart-footer');
+
+            if (!cartItems || cartItems.length === 0) {
+                showCartEmpty();
+                return;
+            }
+
+            empty.style.display = 'none';
+            table.style.display = 'table';
+            footer.style.display = 'flex';
+
+            tbody.innerHTML = '';
+            cartItems.forEach(item => {
+                console.log('Cart item:', item.id, 'productImage=', item.productImage);
+                const tr = document.createElement('tr');
+                const imgUrl = item.productImage || '/images/default.jpg';
+                tr.innerHTML = `
+                    <td><input type="checkbox" class="item-check" data-id="${item.id}" ${item.selected ? 'checked' : ''} onchange="updateSelected(${item.id})"></td>
+                    <td>
+                        <div class="product-cell">
+                            <img src="${imgUrl}" alt="" onerror="this.style.display='none';this.parentElement.classList.add('no-image');">
+                            <span>${item.productName}</span>
+                        </div>
+                    </td>
+                    <td>${formatPrice(item.price)}</td>
+                    <td>
+                        <div class="qty-control">
+                            <button onclick="updateQty(${item.id}, -1)">-</button>
+                            <input type="text" value="${item.quantity}" readonly>
+                            <button onclick="updateQty(${item.id}, 1)">+</button>
+                        </div>
+                    </td>
+                    <td style="color:#e74c3c;font-weight:600;">${formatPrice(item.subtotal)}</td>
+                    <td><button class="btn btn-sm btn-danger" onclick="deleteItem(${item.id})">删除</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            calcTotal();
+        }
+
+        function showCartEmpty() {
+            document.getElementById('cart-table').style.display = 'none';
+            document.getElementById('cart-footer').style.display = 'none';
+            document.getElementById('empty-state').style.display = 'block';
+        }
+
+        async function updateQty(id, delta) {
+            const item = cartItems.find(i => i.id === id);
+            if (!item) return;
+            const newQty = item.quantity + delta;
+            if (newQty < 1) return;
+            try {
+                await put('/cart/' + id, { quantity: newQty });
+                item.quantity = newQty;
+                item.subtotal = parseFloat(item.price) * newQty;
+                renderCart();
+                updateCartBadge();
+            } catch (e) {}
+        }
+
+        async function deleteItem(id) {
+            if (!await confirmDialog('确定删除该商品吗？')) return;
+            try {
+                await del('/cart/' + id);
+                cartItems = cartItems.filter(i => i.id !== id);
+                renderCart();
+                updateCartBadge();
+            } catch (e) {}
+        }
+
+        async function updateSelected(id) {
+            // 选中状态由后端维护，这里简化处理
+            calcTotal();
+        }
+
+        function toggleCheckAll() {
+            const checked = document.getElementById('check-all').checked;
+            document.getElementById('check-all-footer').checked = checked;
+            document.querySelectorAll('.item-check').forEach(cb => cb.checked = checked);
+            calcTotal();
+        }
+
+        function calcTotal() {
+            let total = 0;
+            document.querySelectorAll('.item-check:checked').forEach(cb => {
+                const item = cartItems.find(i => i.id === parseInt(cb.dataset.id));
+                if (item) total += item.subtotal;
+            });
+            document.getElementById('total-amount').textContent = formatPrice(total);
+        }
+
+        async function batchDelete() {
+            const ids = Array.from(document.querySelectorAll('.item-check:checked')).map(cb => parseInt(cb.dataset.id));
+            if (ids.length === 0) {
+                showToast('请先选择商品', 'info');
+                return;
+            }
+            if (!await confirmDialog('确定删除选中的商品吗？')) return;
+            try {
+                await del('/cart/batch', { ids });
+                cartItems = cartItems.filter(i => !ids.includes(i.id));
+                renderCart();
+                updateCartBadge();
+            } catch (e) {}
+        }
+
+        function checkout() {
+            const ids = Array.from(document.querySelectorAll('.item-check:checked')).map(cb => parseInt(cb.dataset.id));
+            if (ids.length === 0) {
+                showToast('请先选择商品', 'info');
+                return;
+            }
+            sessionStorage.setItem('checkoutCartItemIds', JSON.stringify(ids));
+            location.href = '/order/confirm';
+        }
+
+        loadCart();
+    </script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('提交评价')"></head>
+<body>
+    <header th:replace="fragments/header :: header"></header>
+
+    <main class="main-content">
+        <div class="container" style="max-width:700px;">
+            <h2 style="margin-bottom:20px;">提交评价</h2>
+
+            <div class="card" id="review-card" style="display:none;">
+                <div class="card-body">
+                    <div id="product-list"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="fragments/header :: footer"></footer>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script th:replace="fragments/header :: scripts"></script>
+    <script>
+        if (!isLoggedIn()) location.href = '/login?redirect=' + encodeURIComponent(location.pathname + location.search);
+
+        const params = new URLSearchParams(location.search);
+        const orderId = params.get('orderId');
+        let orderDetail = null;
+
+        async function loadOrder() {
+            if (!orderId) return;
+            try {
+                const data = await get('/orders/' + orderId);
+                orderDetail = data.data;
+                document.getElementById('review-card').style.display = 'block';
+
+                const container = document.getElementById('product-list');
+                container.innerHTML = '';
+
+                orderDetail.itemList.forEach((item, idx) => {
+                    const div = document.createElement('div');
+                    div.style.borderBottom = idx < orderDetail.itemList.length - 1 ? '1px solid var(--border)' : 'none';
+                    div.style.padding = '20px 0';
+                    div.innerHTML = `
+                        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+                            <img src="${item.productImage || '/images/default.jpg'}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;">
+                            <div>
+                                <div style="font-size:14px;font-weight:500;">${item.productName}</div>
+                                <div style="font-size:13px;color:#999;">${formatPrice(item.price)} x ${item.quantity}</div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">评分</label>
+                            <div class="star-selector" id="stars-${idx}" style="font-size:24px;color:#ddd;cursor:pointer;">
+                                <span data-val="1" onclick="setStar(${idx},1)">★</span>
+                                <span data-val="2" onclick="setStar(${idx},2)">★</span>
+                                <span data-val="3" onclick="setStar(${idx},3)">★</span>
+                                <span data-val="4" onclick="setStar(${idx},4)">★</span>
+                                <span data-val="5" onclick="setStar(${idx},5)">★</span>
+                            </div>
+                            <input type="hidden" id="rating-${idx}" value="5">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">评价内容</label>
+                            <textarea class="form-control" id="content-${idx}" rows="3" placeholder="分享您的使用体验..."></textarea>
+                        </div>
+                        <div style="text-align:right;">
+                            <button class="btn btn-primary" onclick="submitReview(${idx},${item.productId})">提交评价</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+
+                // 默认5星
+                orderDetail.itemList.forEach((_, idx) => setStar(idx, 5));
+            } catch (e) {}
+        }
+
+        function setStar(idx, val) {
+            document.getElementById('rating-' + idx).value = val;
+            const stars = document.querySelectorAll('#stars-' + idx + ' span');
+            stars.forEach(s => {
+                const sv = parseInt(s.dataset.val);
+                s.style.color = sv <= val ? '#c9a227' : '#ddd';
+            });
+        }
+
+        async function submitReview(idx, productId) {
+            const rating = parseInt(document.getElementById('rating-' + idx).value);
+            const content = document.getElementById('content-' + idx).value;
+            const user = getUser();
+
+            try {
+                await post('/reviews', {
+                    orderId: parseInt(orderId),
+                    productId: productId,
+                    userId: user ? user.id : null,
+                    rating: rating,
+                    content: content,
+                    images: ''
+                });
+                showToast('评价提交成功');
+                setTimeout(() => location.href = '/order/list', 1000);
+            } catch (e) {}
+        }
+
+        loadOrder();
+    </script>
+</body>
+</html>

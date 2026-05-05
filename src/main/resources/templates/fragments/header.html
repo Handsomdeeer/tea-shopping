@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title} + ' - 潮茶'">潮茶</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <header class="site-header" th:fragment="header">
+        <div class="container header-inner">
+            <a href="/" class="logo">
+                <div class="logo-icon">茶</div>
+                <span>潮茶</span>
+            </a>
+            <div class="header-search">
+                <input type="text" id="search-input" placeholder="搜索茶叶..." th:value="${keyword}">
+                <button onclick="doSearch()">🔍</button>
+            </div>
+            <nav class="header-nav">
+                <a href="/" class="cart-badge">🏠 首页</a>
+                <a href="/cart" class="cart-badge">🛒 购物车<span class="badge" style="display:none">0</span></a>
+                <a href="/order/list">📋 我的订单</a>
+                <span id="user-nav">
+                    <a href="/login">登录</a>
+                    <a href="/register">注册</a>
+                </span>
+            </nav>
+        </div>
+    </header>
+
+    <footer class="site-footer" th:fragment="footer">
+        <div class="container footer-inner">
+            <div class="footer-col">
+                <h4>关于我们</h4>
+                <ul>
+                    <li><a href="javascript:void(0)" onclick="openFooterModal('brand')">品牌故事</a></li>
+                    <li><a href="javascript:void(0)" onclick="openFooterModal('culture')">企业文化</a></li>
+                    <li><a href="javascript:void(0)" onclick="openFooterModal('contact')">联系我们</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>购物指南</h4>
+                <ul>
+                    <li><a href="javascript:void(0)" onclick="openFooterModal('shopping')">购物流程</a></li>
+                    <li><a href="javascript:void(0)" onclick="openFooterModal('payment')">支付方式</a></li>
+                    <li><a href="javascript:void(0)" onclick="openFooterModal('delivery')">配送说明</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>售后服务</h4>
+                <ul>
+                    <li><a href="javascript:void(0)" onclick="openFooterModal('return')">退换货政策</a></li>
+                    <li><a href="javascript:void(0)" onclick="openFooterModal('aftersale')">售后流程</a></li>
+                    <li><a href="javascript:void(0)" onclick="openFooterModal('faq')">常见问题</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>联系方式</h4>
+                <ul>
+                    <li>客服热线：400-888-8888</li>
+                    <li>邮箱：service@chaocha.com</li>
+                    <li>地址：广东省揭阳市</li>
+                </ul>
+            </div>
+        </div>
+        <div class="container footer-bottom">
+            <p>© 2026 潮茶有限公司 ChaoCha Co., Ltd. All rights reserved.</p>
+        </div>
+        <!-- 底部弹窗 -->
+        <div id="footer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeFooterModal()">
+            <div style="background:#fff;border-radius:12px;width:560px;max-width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+                <div style="padding:20px 24px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;">
+                    <h3 id="footer-modal-title" style="margin:0;font-size:18px;color:#1a3c2b;"></h3>
+                    <button onclick="closeFooterModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button>
+                </div>
+                <div id="footer-modal-body" style="padding:24px;line-height:1.8;color:#444;font-size:15px;"></div>
+            </div>
+        </div>
+    </footer>
+
+    <script th:fragment="scripts">
+        function doSearch() {
+            const keyword = document.getElementById('search-input').value.trim();
+            if (keyword) {
+                location.href = '/product/list?keyword=' + encodeURIComponent(keyword);
+            }
+        }
+        document.getElementById('search-input')?.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') doSearch();
+        });
+
+        function openFooterModal(type) {
+            const modal = document.getElementById('footer-modal');
+            const title = document.getElementById('footer-modal-title');
+            const body = document.getElementById('footer-modal-body');
+            const data = {
+                brand: {
+                    title: '品牌故事',
+                    content: `
+                        <p><strong>潮茶有限公司</strong>创立于广东省揭阳市，秉承"以茶会友，以诚待人"的经营理念，致力于将中国传统茶文化推向世界。</p>
+                        <p>我们深入云南普洱、福建武夷、浙江龙井等核心产区，与当地茶农建立长期合作关系，从源头把控茶叶品质。每一片茶叶都经过严苛筛选，确保为您呈现最纯正的茶香。</p>
+                        <p>多年来，潮茶已累计服务超过百万茶友，成为众多茶叶爱好者信赖的品牌。我们相信，一杯好茶，不仅是味蕾的享受，更是生活态度的体现。</p>
+                    `
+                },
+                culture: {
+                    title: '企业文化',
+                    content: `
+                        <p><strong>核心价值观：</strong>以茶会友，以诚待人</p>
+                        <p><strong>企业使命：</strong>传承千年茶文化，让好茶走进千家万户。</p>
+                        <p><strong>企业愿景：</strong>成为中国最具影响力的茶叶品牌，让世界品味中国茶。</p>
+                        <p><strong>经营理念：</strong>坚持原产地直供，坚持传统制茶工艺，坚持严苛品质把控。我们用心做好每一杯茶，用诚信赢得每一位客户。</p>
+                        <p><strong>团队精神：</strong>专注、匠心、创新、共赢。</p>
+                    `
+                },
+                contact: {
+                    title: '联系我们',
+                    content: `
+                        <p><strong>客服热线：</strong>400-888-8888（周一至周日 9:00-21:00）</p>
+                        <p><strong>电子邮箱：</strong>service@chaocha.com</p>
+                        <p><strong>公司地址：</strong>广东省揭阳市</p>
+                        <p><strong>商务合作：</strong>business@chaocha.com</p>
+                    `
+                },
+                shopping: {
+                    title: '购物流程',
+                    content: `
+                        <p><strong>1. 挑选商品</strong><br>浏览商品列表或通过搜索找到心仪的茶品，点击进入商品详情页。</p>
+                        <p><strong>2. 加入购物车</strong><br>选择规格和数量，点击"加入购物车"按钮。</p>
+                        <p><strong>3. 提交订单</strong><br>进入购物车，确认商品信息后点击"去结算"，填写或选择收货地址。</p>
+                        <p><strong>4. 支付订单</strong><br>选择支付方式完成付款，订单进入待发货状态。</p>
+                        <p><strong>5. 收货评价</strong><br>收到商品后确认收货，并可对商品进行评价。</p>
+                    `
+                },
+                payment: {
+                    title: '支付方式',
+                    content: `
+                        <p><strong>微信支付</strong><br>下单后选择微信支付，扫描二维码完成付款。</p>
+                        <p><strong>支付宝支付</strong><br>下单后选择支付宝支付，扫描二维码完成付款。</p>
+                        <p><strong>支付安全</strong><br>本平台采用加密传输技术，保障您的支付信息安全。</p>
+                    `
+                },
+                delivery: {
+                    title: '配送说明',
+                    content: `
+                        <p><strong>配送范围</strong><br>全国大部分地区均可配送（港澳台及偏远地区除外）。</p>
+                        <p><strong>配送时效</strong><br>一般情况下，订单付款后 1-3 个工作日内发货，3-7 个工作日内送达。</p>
+                        <p><strong>运费标准</strong><br>订单满 99 元免运费，不满 99 元收取 6 元运费。</p>
+                        <p><strong>物流查询</strong><br>发货后可在"我的订单"中查看物流单号及配送进度。</p>
+                    `
+                },
+                return: {
+                    title: '退换货政策',
+                    content: `
+                        <p><strong>7天无理由退换</strong><br>自签收之日起 7 日内，商品未拆封、不影响二次销售的，可申请无理由退货。</p>
+                        <p><strong>质量问题退换</strong><br>如商品存在质量问题，自签收之日起 15 日内可申请退换货，运费由我方承担。</p>
+                        <p><strong>不予退换情形</strong><br>已拆封、已饮用、人为损坏或超过退换期限的商品不予退换。</p>
+                        <p><strong>退换流程</strong><br>进入"我的订单"申请售后 → 客服审核 → 寄回商品 → 验收后退款/换货。</p>
+                    `
+                },
+                aftersale: {
+                    title: '售后流程',
+                    content: `
+                        <p><strong>1. 提交申请</strong><br>登录账号，进入"我的订单"，找到对应订单点击"申请售后"。</p>
+                        <p><strong>2. 客服审核</strong><br>售后客服会在 1-2 个工作日内审核您的申请，并通过短信或电话与您联系。</p>
+                        <p><strong>3. 寄回商品</strong><br>审核通过后，按客服提供的地址将商品寄回（质量问题我方承担运费）。</p>
+                        <p><strong>4. 验收处理</strong><br>收到退回商品并验收无误后，3 个工作日内为您办理退款或换货。</p>
+                    `
+                },
+                faq: {
+                    title: '常见问题',
+                    content: `
+                        <p><strong>Q：如何查询订单状态？</strong><br>A：登录后进入"我的订单"页面即可查看所有订单及物流信息。</p>
+                        <p><strong>Q：下单后可以修改地址吗？</strong><br>A：订单未付款前可自行修改；已付款未发货请联系客服修改。</p>
+                        <p><strong>Q：茶叶如何保存？</strong><br>A：建议密封、避光、防潮、防异味存放，绿茶可冷藏保存。</p>
+                        <p><strong>Q：支持开发票吗？</strong><br>A：支持。请在下单时备注开票信息，或联系客服补开。</p>
+                    `
+                }
+            };
+            const item = data[type];
+            if (!item) return;
+            title.textContent = item.title;
+            body.innerHTML = item.content;
+            modal.style.display = 'flex';
+        }
+
+        function closeFooterModal() {
+            document.getElementById('footer-modal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

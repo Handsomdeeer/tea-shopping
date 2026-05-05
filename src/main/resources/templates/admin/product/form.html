@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品编辑 - 潮茶商城</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <div class="admin-logo">🍵 潮茶商城后台</div>
+            <ul class="admin-menu">
+                <li><a href="/admin/dashboard">📊 数据统计</a></li>
+                <li><a href="/admin/category/list">🏷️ 分类管理</a></li>
+                <li><a href="/admin/product/list" class="active">📦 商品管理</a></li>
+                <li><a href="/admin/order/list">📋 订单管理</a></li>
+                <li><a href="/admin/payment">💳 支付配置</a></li>
+                <li><a href="/admin/banner/list">🖼️ 图片管理</a></li>
+                <li><a href="/admin/admin">👤 管理员管理</a></li>
+                <li><a href="javascript:void(0)" onclick="logout()">🚪 退出登录</a></li>
+            </ul>
+        </aside>
+        <div class="admin-main">
+            <div class="admin-header">
+                <h2 id="form-title">添加商品</h2>
+            </div>
+
+            <div class="card" style="max-width:800px;">
+                <div class="card-body">
+                    <form id="product-form" onsubmit="return saveProduct(event)">
+                        <input type="hidden" id="product-id">
+                        <div class="form-group">
+                            <label class="form-label">商品名称</label>
+                            <input type="text" class="form-control" id="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">商品分类</label>
+                            <select class="form-control" id="categoryId" required>
+                                <option value="">请选择分类</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">商品描述</label>
+                            <input type="text" class="form-control" id="description">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">商品详情</label>
+                            <textarea class="form-control" id="detail" rows="4"></textarea>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+                            <div class="form-group">
+                                <label class="form-label">售价</label>
+                                <input type="number" class="form-control" id="price" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">原价</label>
+                                <input type="number" class="form-control" id="originalPrice" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">库存</label>
+                                <input type="number" class="form-control" id="stock" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">商品主图</label>
+                            <div style="display:flex;gap:12px;align-items:flex-start;">
+                                <input type="file" id="imageFile" accept="image/*" style="display:none;" onchange="handleImageUpload(this)">
+                                <button type="button" class="btn btn-secondary" onclick="document.getElementById('imageFile').click()">选择图片</button>
+                                <img id="imagePreview" src="" style="width:100px;height:100px;object-fit:cover;border-radius:4px;display:none;border:1px solid #ddd;">
+                            </div>
+                            <input type="hidden" id="imageUrl" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">商品状态</label>
+                            <select class="form-control" id="status">
+                                <option value="1">上架</option>
+                                <option value="0">下架</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;gap:12px;">
+                            <button type="submit" class="btn btn-primary">保存</button>
+                            <a href="/admin/product/list" class="btn btn-secondary">返回</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        if (!isLoggedIn()) location.href = '/admin/login';
+
+        const params = new URLSearchParams(location.search);
+        const editId = params.get('id');
+
+        async function loadCategories() {
+            try {
+                const data = await get('/categories');
+                const sel = document.getElementById('categoryId');
+                data.data.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {}
+        }
+
+        async function loadProduct() {
+            if (!editId) return;
+            document.getElementById('form-title').textContent = '编辑商品';
+            document.getElementById('product-id').value = editId;
+            try {
+                const data = await get('/products/' + editId);
+                const p = data.data;
+                document.getElementById('name').value = p.name;
+                document.getElementById('categoryId').value = p.categoryId;
+                document.getElementById('description').value = p.description || '';
+                document.getElementById('detail').value = p.detail || '';
+                document.getElementById('price').value = p.price;
+                document.getElementById('originalPrice').value = p.originalPrice || '';
+                document.getElementById('stock').value = p.stock;
+                document.getElementById('imageUrl').value = p.imageUrl;
+                if (p.imageUrl) {
+                    document.getElementById('imagePreview').src = p.imageUrl;
+                    document.getElementById('imagePreview').style.display = 'block';
+                }
+                document.getElementById('status').value = p.status;
+            } catch (e) {}
+        }
+
+        async function handleImageUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            try {
+                const data = await upload('/upload/image', file);
+                document.getElementById('imageUrl').value = data.data;
+                document.getElementById('imagePreview').src = data.data;
+                document.getElementById('imagePreview').style.display = 'block';
+                showToast('图片上传成功');
+            } catch (e) {}
+        }
+
+        async function saveProduct(e) {
+            e.preventDefault();
+            const body = {
+                name: document.getElementById('name').value,
+                categoryId: parseInt(document.getElementById('categoryId').value),
+                description: document.getElementById('description').value,
+                detail: document.getElementById('detail').value,
+                price: parseFloat(document.getElementById('price').value),
+                originalPrice: parseFloat(document.getElementById('originalPrice').value) || null,
+                stock: parseInt(document.getElementById('stock').value),
+                imageUrl: document.getElementById('imageUrl').value,
+                status: parseInt(document.getElementById('status').value)
+            };
+
+            try {
+                if (editId) {
+                    await put('/admin/products/' + editId, body);
+                } else {
+                    await post('/admin/products', body);
+                }
+                showToast('保存成功');
+                setTimeout(() => location.href = '/admin/product/list', 800);
+            } catch (e) {}
+            return false;
+        }
+
+        (async function init() {
+            await loadCategories();
+            await loadProduct();
+        })();
+    </script>
+</body>
+</html>

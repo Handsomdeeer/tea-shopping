@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片管理 - 潮茶商城</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .banner-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .banner-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+        }
+        .banner-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+        .banner-card img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+        }
+        .banner-card .banner-info {
+            padding: 14px 16px;
+        }
+        .banner-card .banner-name {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .banner-card .banner-meta {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        .upload-preview {
+            width: 100%;
+            height: 180px;
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            background: var(--bg);
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .upload-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-box {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            width: 480px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-hover);
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .edit-preview {
+            width: 100%;
+            height: 160px;
+            border-radius: var(--radius);
+            object-fit: cover;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <div class="admin-logo">🍵 潮茶商城后台</div>
+            <ul class="admin-menu">
+                <li><a href="/admin/dashboard">📊 数据统计</a></li>
+                <li><a href="/admin/category/list">🏷️ 分类管理</a></li>
+                <li><a href="/admin/product/list">📦 商品管理</a></li>
+                <li><a href="/admin/order/list">📋 订单管理</a></li>
+                <li><a href="/admin/payment">💳 支付配置</a></li>
+                <li><a href="/admin/banner/list" class="active">🖼️ 图片管理</a></li>
+                <li><a href="/admin/admin">👤 管理员管理</a></li>
+                <li><a href="javascript:void(0)" onclick="logout()">🚪 退出登录</a></li>
+            </ul>
+        </aside>
+        <div class="admin-main">
+            <div class="admin-header">
+                <h2>图片管理</h2>
+            </div>
+
+            <!-- 上传表单 -->
+            <div class="card" style="margin-bottom:24px;">
+                <div class="card-body">
+                    <h3 class="card-title" style="margin-bottom:20px;">上传新图片</h3>
+                    <div style="display:grid;grid-template-columns:300px 1fr;gap:24px;align-items:start;">
+                        <div>
+                            <div class="upload-preview" id="upload-preview" onclick="document.getElementById('banner-file').click()">
+                                <span id="upload-placeholder">点击上传图片</span>
+                            </div>
+                            <input type="file" id="banner-file" accept="image/*" style="display:none;" onchange="previewImage(this)">
+                        </div>
+                        <div>
+                            <div class="form-group">
+                                <label class="form-label">图片名称</label>
+                                <input type="text" class="form-control" id="banner-name" placeholder="如：首页轮播图1">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">图片类型</label>
+                                <select class="form-control" id="banner-type">
+                                    <option value="BANNER">轮播图</option>
+                                    <option value="AD">广告图</option>
+                                    <option value="OTHER">其他</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">排序</label>
+                                <input type="number" class="form-control" id="banner-sort" value="0" min="0">
+                            </div>
+                            <button class="btn btn-primary" onclick="uploadBanner()">确认上传</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图片列表 -->
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title" style="margin-bottom:20px;">图片列表</h3>
+                    <div class="banner-grid" id="banner-grid"></div>
+                    <div class="empty-state" id="empty-state" style="display:none;padding:40px;">
+                        <p>暂无图片</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑Modal -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>编辑轮播图</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-id">
+                <div style="position:relative;margin-bottom:16px;cursor:pointer;" onclick="document.getElementById('edit-file').click()">
+                    <img class="edit-preview" id="edit-preview-img" src="" alt="预览" style="margin-bottom:0;">
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);border-radius:var(--radius);">
+                        <span style="color:#fff;font-size:14px;">点击更换图片</span>
+                    </div>
+                </div>
+                <input type="file" id="edit-file" accept="image/*" style="display:none;" onchange="previewEditImage(this)">
+                <div class="form-group">
+                    <label class="form-label">图片名称</label>
+                    <input type="text" class="form-control" id="edit-name" placeholder="请输入图片名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">图片类型</label>
+                    <select class="form-control" id="edit-type">
+                        <option value="BANNER">轮播图</option>
+                        <option value="AD">广告图</option>
+                        <option value="OTHER">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">排序</label>
+                    <input type="number" class="form-control" id="edit-sort" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">状态</label>
+                    <select class="form-control" id="edit-status">
+                        <option value="1">启用</option>
+                        <option value="0">禁用</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeEditModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveEdit()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        if (!isLoggedIn()) location.href = '/admin/login';
+
+        let currentImageUrl = '';
+        let bannerMap = {};
+
+        function previewImage(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('upload-preview');
+                preview.innerHTML = '<img src="' + e.target.result + '" alt="预览">';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function uploadBanner() {
+            const fileInput = document.getElementById('banner-file');
+            const name = document.getElementById('banner-name').value.trim();
+            const type = document.getElementById('banner-type').value;
+            const sort = parseInt(document.getElementById('banner-sort').value) || 0;
+
+            if (!fileInput.files[0]) {
+                showToast('请选择图片', 'error');
+                return;
+            }
+            if (!name) {
+                showToast('请输入图片名称', 'error');
+                return;
+            }
+
+            try {
+                // 先上传文件
+                const uploadData = await upload('/admin/banners/upload', fileInput.files[0]);
+                const imageUrl = uploadData.data;
+
+                // 保存记录
+                await post('/admin/banners', {
+                    name: name,
+                    imageUrl: imageUrl,
+                    type: type,
+                    sortOrder: sort
+                });
+
+                showToast('上传成功');
+                resetForm();
+                loadBanners();
+            } catch (e) {}
+        }
+
+        function resetForm() {
+            document.getElementById('banner-file').value = '';
+            document.getElementById('banner-name').value = '';
+            document.getElementById('banner-sort').value = '0';
+            document.getElementById('upload-preview').innerHTML = '<span id="upload-placeholder">点击上传图片</span>';
+        }
+
+        async function loadBanners() {
+            const grid = document.getElementById('banner-grid');
+            const empty = document.getElementById('empty-state');
+            try {
+                const data = await get('/admin/banners');
+                const list = data.data;
+                grid.innerHTML = '';
+
+                if (!list || list.length === 0) {
+                    empty.style.display = 'block';
+                    return;
+                }
+                empty.style.display = 'none';
+
+                bannerMap = {};
+                list.forEach(b => {
+                    bannerMap[b.id] = b;
+                    const card = document.createElement('div');
+                    card.className = 'banner-card';
+                    card.innerHTML = `
+                        <img src="${b.imageUrl}" alt="${b.name}">
+                        <div class="banner-info">
+                            <div class="banner-name">${b.name}</div>
+                            <div class="banner-meta">类型：${typeText(b.type)} | 排序：${b.sortOrder || 0} | ${statusText(b.status)}</div>
+                            <div style="display:flex;gap:8px;">
+                                <button class="btn btn-sm btn-primary" onclick="openEditModal(${b.id})">编辑</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteBanner(${b.id})">删除</button>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (e) {}
+        }
+
+        function typeText(type) {
+            const map = { 'BANNER': '轮播图', 'AD': '广告图', 'OTHER': '其他' };
+            return map[type] || type;
+        }
+
+        function statusText(status) {
+            return status === 1 ? '<span style="color:var(--success)">启用</span>' : '<span style="color:var(--danger)">禁用</span>';
+        }
+
+        function previewEditImage(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('edit-preview-img').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function openEditModal(id) {
+            const banner = bannerMap[id];
+            if (!banner) return;
+            document.getElementById('edit-id').value = banner.id;
+            document.getElementById('edit-preview-img').src = banner.imageUrl;
+            document.getElementById('edit-name').value = banner.name || '';
+            document.getElementById('edit-type').value = banner.type || 'BANNER';
+            document.getElementById('edit-sort').value = banner.sortOrder || 0;
+            document.getElementById('edit-status').value = banner.status === 0 ? '0' : '1';
+            document.getElementById('edit-file').value = '';
+            document.getElementById('edit-modal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+        }
+
+        async function saveEdit() {
+            const id = document.getElementById('edit-id').value;
+            const name = document.getElementById('edit-name').value.trim();
+            const type = document.getElementById('edit-type').value;
+            const sortOrder = parseInt(document.getElementById('edit-sort').value) || 0;
+            const status = parseInt(document.getElementById('edit-status').value);
+            const fileInput = document.getElementById('edit-file');
+
+            if (!name) {
+                showToast('请输入图片名称', 'error');
+                return;
+            }
+
+            try {
+                let imageUrl = bannerMap[id].imageUrl;
+                if (fileInput.files[0]) {
+                    const uploadData = await upload('/admin/banners/upload', fileInput.files[0]);
+                    imageUrl = uploadData.data;
+                }
+
+                await put('/admin/banners/' + id, {
+                    name: name,
+                    imageUrl: imageUrl,
+                    type: type,
+                    sortOrder: sortOrder,
+                    status: status
+                });
+                showToast('保存成功');
+                closeEditModal();
+                fileInput.value = '';
+                loadBanners();
+            } catch (e) {
+                console.error('保存失败', e);
+                showToast('保存失败，请检查控制台报错', 'error');
+            }
+        }
+
+        async function deleteBanner(id) {
+            if (!await confirmDialog('确定删除该图片吗？')) return;
+            try {
+                await del('/admin/banners/' + id);
+                showToast('删除成功');
+                loadBanners();
+            } catch (e) {
+                console.error('删除失败', e);
+                showToast('删除失败，请检查控制台报错', 'error');
+            }
+        }
+
+        loadBanners();
+    </script>
+</body>
+</html>

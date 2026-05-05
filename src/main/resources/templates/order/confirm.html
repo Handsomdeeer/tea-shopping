@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/header :: head('确认订单')"></head>
+<body>
+    <header th:replace="fragments/header :: header"></header>
+
+    <main class="main-content">
+        <div class="container" style="max-width:800px;">
+            <h2 style="margin-bottom:20px;">确认订单</h2>
+
+            <!-- 收货地址 -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-body">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                        <h3 style="font-size:16px;">收货地址</h3>
+                        <a href="/user/address" style="font-size:13px;">管理地址</a>
+                    </div>
+                    <div id="address-list"></div>
+                    <div class="empty-state" id="address-empty" style="display:none;padding:20px;">
+                        <p>暂无收货地址，<a href="/user/address">去添加</a></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 商品清单 -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-body">
+                    <h3 style="font-size:16px;margin-bottom:16px;">商品清单</h3>
+                    <div id="order-items"></div>
+                </div>
+            </div>
+
+            <!-- 备注 -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-body">
+                    <h3 style="font-size:16px;margin-bottom:16px;">订单备注</h3>
+                    <textarea class="form-control" id="remark" placeholder="选填，请输入订单备注..."></textarea>
+                </div>
+            </div>
+
+            <!-- 结算 -->
+            <div class="cart-footer" style="position:sticky;bottom:20px;">
+                <div></div>
+                <div style="display:flex;align-items:center;gap:20px;">
+                    <div class="total">合计：<strong id="pay-amount">¥0.00</strong></div>
+                    <button class="btn btn-primary btn-lg" onclick="createOrder()">提交订单</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="fragments/header :: footer"></footer>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script th:replace="fragments/header :: scripts"></script>
+    <script>
+        let addresses = [];
+        let selectedAddressId = null;
+        let cartItems = [];
+
+        async function loadAddresses() {
+            try {
+                const user = getUser();
+                const data = await get('/addresses?userId=' + (user ? user.id : ''));
+                addresses = data.data || [];
+                const list = document.getElementById('address-list');
+                const empty = document.getElementById('address-empty');
+
+                if (addresses.length === 0) {
+                    list.innerHTML = '';
+                    empty.style.display = 'block';
+                    return;
+                }
+                empty.style.display = 'none';
+
+                // 选中默认地址
+                const def = addresses.find(a => a.isDefault);
+                if (def) selectedAddressId = def.id;
+                else selectedAddressId = addresses[0].id;
+
+                list.innerHTML = '';
+                addresses.forEach(addr => {
+                    const div = document.createElement('div');
+                    div.className = 'address-card';
+                    div.style.cursor = 'pointer';
+                    div.style.border = addr.id === selectedAddressId ? '2px solid var(--primary)' : '1px solid var(--border)';
+                    div.innerHTML = `
+                        <div class="addr-header">
+                            <span class="addr-name">${addr.receiverName} ${addr.receiverPhone}</span>
+                            ${addr.isDefault ? '<span class="default-tag">默认</span>' : ''}
+                        </div>
+                        <div class="addr-detail">${addr.province}${addr.city}${addr.district}${addr.detailAddress}</div>
+                    `;
+                    div.onclick = () => {
+                        selectedAddressId = addr.id;
+                        document.querySelectorAll('#address-list .address-card').forEach(c => c.style.border = '1px solid var(--border)');
+                        div.style.border = '2px solid var(--primary)';
+                    };
+                    list.appendChild(div);
+                });
+            } catch (e) {}
+        }
+
+        async function loadCartItems() {
+            const idsStr = sessionStorage.getItem('checkoutCartItemIds');
+            const ids = idsStr ? JSON.parse(idsStr) : [];
+
+            try {
+                const user = getUser();
+                const data = await get('/cart?userId=' + (user ? user.id : ''));
+                const all = data.data || [];
+                if (ids.length > 0) {
+                    cartItems = all.filter(i => ids.includes(i.id));
+                } else {
+                    cartItems = all.filter(i => i.selected);
+                }
+                renderItems();
+            } catch (e) {}
+        }
+
+        function renderItems() {
+            const container = document.getElementById('order-items');
+            let total = 0;
+            container.innerHTML = '';
+
+            cartItems.forEach(item => {
+                total += item.subtotal;
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.style.gap = '14px';
+                div.style.padding = '10px 0';
+                div.style.borderBottom = '1px solid #f0f0f0';
+                div.innerHTML = `
+                    <img src="${item.productImage || '/images/default.jpg'}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;">
+                    <div style="flex:1;">
+                        <div style="font-size:14px;">${item.productName}</div>
+                        <div style="font-size:13px;color:#999;">${formatPrice(item.price)} x ${item.quantity}</div>
+                    </div>
+                    <div style="font-weight:600;color:#e74c3c;">${formatPrice(item.subtotal)}</div>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('pay-amount').textContent = formatPrice(total);
+        }
+
+        async function createOrder() {
+            if (!selectedAddressId) {
+                showToast('请选择收货地址', 'error');
+                return;
+            }
+            const user = getUser();
+            const ids = cartItems.map(i => i.id);
+            try {
+                const data = await post('/orders', {
+                    userId: user ? user.id : '',
+                    addressId: selectedAddressId,
+                    cartItemIds: ids,
+                    remark: document.getElementById('remark').value
+                });
+                sessionStorage.removeItem('checkoutCartItemIds');
+                showToast('订单创建成功');
+                setTimeout(() => location.href = '/order/pay?orderId=' + data.data.orderId, 1000);
+            } catch (e) {}
+        }
+
+        loadAddresses();
+        loadCartItems();
+    </script>
+</body>
+</html>
