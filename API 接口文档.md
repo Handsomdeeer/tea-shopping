@@ -2,7 +2,7 @@
 
 ## ChaoCha E-Commerce System - API Documentation
 
-**版本号：** V1.1  
+**版本号：** V1.2  
 **日期：** 2026 年 5 月 5 日  
 **基础路径：** `/api/v1`
 
@@ -95,7 +95,13 @@ Authorization: Bearer {token}
     "id": 1,
     "username": "admin",
     "nickname": "超级管理员",
-    "token": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    "avatar": null,
+    "gender": 0,
+    "email": null,
+    "phone": "13800138000",
+    "status": 1,
+    "createTime": "2026-01-01T10:00:00",
+    "updateTime": "2026-01-01T10:00:00"
   },
   "timestamp": 1711872000000
 }
@@ -176,11 +182,17 @@ Authorization: Bearer {token}
 
 ### 请求参数
 
-```json
-{
-    "userId": 2
-}
-```
+**查询参数：**
+
+| 参数       | 类型      | 必填  | 说明                   |
+| -------- | ------- | --- | -------------------- |
+| userId   | Long    | 否   | 用户ID（可选，用于测试）     |
+
+**请求头：**
+
+| 参数            | 类型     | 必填  | 说明                   |
+| ------------- | ------ | --- | -------------------- |
+| Authorization | String | 否   | Bearer Token（可选）    |
 
 ### 响应示例
 
@@ -220,12 +232,14 @@ Authorization: Bearer {token}
 
 **请求体（JSON）：**
 
-| 字段       | 类型      | 必填  | 说明          |
-| -------- | ------- | --- | ----------- |
-| nickname | String  | 否   | 昵称          |
-| avatar   | String  | 否   | 头像 URL      |
-| gender   | Integer | 否   | 性别（0：女，1：男） |
-| email    | String  | 否   | 邮箱          |
+| 字段          | 类型      | 必填  | 说明          |
+| ----------- | ------- | --- | ----------- |
+| id          | Long    | 是   | 用户ID        |
+| nickname    | String  | 否   | 昵称          |
+| avatar      | String  | 否   | 头像 URL      |
+| gender      | Integer | 否   | 性别（0：未知，1：男，2：女） |
+| email       | String  | 否   | 邮箱          |
+| phone       | String  | 否   | 手机号         |
 
 **请求示例：**
 
@@ -234,7 +248,9 @@ Authorization: Bearer {token}
   "id": 2,
   "nickname": "新茶友",
   "avatar": "https://example.com/new-avatar.jpg",
-  "gender": 1
+  "gender": 1,
+  "email": "new@example.com",
+  "phone": "13900139000"
 }
 ```
 
@@ -265,6 +281,12 @@ Authorization: Bearer {token}
 
 ### 请求参数
 
+**查询参数：**
+
+| 参数       | 类型      | 必填  | 说明                   |
+| -------- | ------- | --- | -------------------- |
+| userId   | Long    | 是   | 用户ID                 |
+
 **请求体（JSON）：**
 
 | 字段          | 类型     | 必填  | 说明  |
@@ -274,15 +296,11 @@ Authorization: Bearer {token}
 
 **请求示例：**
 
-``json
-请求参数
-{
-    "userId": 2    
-}
+```
+PUT /api/v1/users/password?userId=2
 ```
 
 ```json
-请求体
 {
   "oldPassword": "Old123456",
   "newPassword": "New123456"
@@ -852,14 +870,16 @@ Authorization: Bearer {token}
 
 | 字段          | 类型          | 必填  | 说明                |
 | ----------- | ----------- | --- | ----------------- |
+| userId      | Long        | 是   | 用户ID              |
 | addressId   | Long        | 是   | 收货地址 ID           |
-| cartItemIds | Array<Long> | 否   | 购物车项 ID 数组（不传则全选） |
+| cartItemIds | Array<Long> | 是   | 购物车项 ID 数组         |
 | remark      | String      | 否   | 订单备注              |
 
 **请求示例：**
 
 ```json
 {
+  "userId": 1,
   "addressId": 1,
   "cartItemIds": [1, 2],
   "remark": "请尽快发货"
@@ -873,12 +893,9 @@ Authorization: Bearer {token}
 ```json
 {
   "code": 200,
-  "message": "订单创建成功",
+  "message": "success",
   "data": {
-    "orderId": "ORD20260331001",
-    "totalAmount": 1176.00,
-    "freightAmount": 0.00,
-    "payAmount": 1176.00
+    "orderId": 1
   },
   "timestamp": 1711872000000
 }
@@ -902,10 +919,10 @@ Authorization: Bearer {token}
 
 | 参数       | 类型      | 必填  | 说明                            |
 | -------- | ------- | --- | ----------------------------- |
-| status   | Integer | 否   | 订单状态（0：待付款，1：待发货，2：待收货，3：已完成） |
-| keyword  | String  | 否   | 订单号或商品名称                      |
-| pageNum  | Integer | 否   | 页码                            |
-| pageSize | Integer | 否   | 每页数量                          |
+| pageNum  | Integer | 否   | 页码（默认1）                       |
+| pageSize | Integer | 否   | 每页数量（默认10）                    |
+| status   | Integer | 否   | 订单状态（0：待付款，1：待发货，2：待收货，3：已完成，4：已取消） |
+| userId   | Long    | 否   | 用户ID（可选）                      |
 
 ### 响应示例
 
@@ -951,7 +968,7 @@ Authorization: Bearer {token}
 
 ### 接口信息
 
-- **路径：** `GET /api/v1/orders/{orderId}`
+- **路径：** `GET /api/v1/orders/{id}`
 - **描述：** 获取订单详细信息
 - **权限：** 需要认证
 
@@ -959,7 +976,7 @@ Authorization: Bearer {token}
 
 **路径参数：**
 
-- orderId：订单 ID
+- id：订单 ID
 
 ### 响应示例
 
@@ -1008,7 +1025,7 @@ Authorization: Bearer {token}
 
 ### 接口信息
 
-- **路径：** `PUT /api/v1/orders/{orderId}/cancel`
+- **路径：** `PUT /api/v1/orders/{id}/cancel`
 - **描述：** 取消未支付的订单
 - **权限：** 需要认证
 
@@ -1016,7 +1033,7 @@ Authorization: Bearer {token}
 
 **路径参数：**
 
-- orderId：订单 ID
+- id：订单 ID
 
 **请求体（JSON）：**
 
@@ -1025,6 +1042,10 @@ Authorization: Bearer {token}
 | reason | String | 否   | 取消原因 |
 
 **请求示例：**
+
+```
+PUT /api/v1/orders/1/cancel
+```
 
 ```json
 {
@@ -1053,7 +1074,7 @@ Authorization: Bearer {token}
 
 ### 接口信息
 
-- **路径：** `PUT /api/v1/orders/{orderId}/pay`
+- **路径：** `PUT /api/v1/orders/{id}/pay`
 - **描述：** 用户确认支付订单
 - **权限：** 需要认证
 
@@ -1061,7 +1082,7 @@ Authorization: Bearer {token}
 
 **路径参数：**
 
-- orderId：订单 ID
+- id：订单 ID
 
 ### 响应示例
 
@@ -1084,7 +1105,7 @@ Authorization: Bearer {token}
 
 ### 接口信息
 
-- **路径：** `PUT /api/v1/orders/{orderId}/confirm`
+- **路径：** `PUT /api/v1/orders/{id}/confirm`
 - **描述：** 用户确认收到货物
 - **权限：** 需要认证
 
@@ -1092,7 +1113,7 @@ Authorization: Bearer {token}
 
 **路径参数：**
 
-- orderId：订单 ID
+- id：订单 ID
 
 ### 响应示例
 
@@ -1115,7 +1136,7 @@ Authorization: Bearer {token}
 
 ### 接口信息
 
-- **路径：** `PUT /api/v1/admin/orders/{orderId}/ship`
+- **路径：** `PUT /api/v1/admin/orders/{id}/ship`
 - **描述：** 管理员处理订单发货
 - **权限：** 需要管理员认证
 
@@ -1123,7 +1144,7 @@ Authorization: Bearer {token}
 
 **路径参数：**
 
-- orderId：订单 ID
+- id：订单 ID
 
 **请求体（JSON）：**
 
@@ -1133,6 +1154,10 @@ Authorization: Bearer {token}
 | logisticsNo      | String | 是   | 物流单号      |
 
 **请求示例：**
+
+```
+PUT /api/v1/admin/orders/1/ship
+```
 
 ```json
 {
@@ -1444,6 +1469,15 @@ Authorization: Bearer {token}
 | username | String | 是   | 管理员账号 |
 | password | String | 是   | 密码    |
 
+**请求示例：**
+
+```json
+{
+  "username": "admin",
+  "password": "admin123"
+}
+```
+
 ### 响应示例
 
 **成功响应：**
@@ -1455,8 +1489,13 @@ Authorization: Bearer {token}
   "data": {
     "id": 1,
     "username": "admin",
-    "role": "SUPER_ADMIN",
-    "token": "admin-token-xyz789"
+    "realName": "系统管理员",
+    "role": 1,
+    "status": 1,
+    "lastLoginTime": null,
+    "lastLoginIp": null,
+    "createTime": "2026-01-01T10:00:00",
+    "updateTime": "2026-01-01T10:00:00"
   },
   "timestamp": 1711872000000
 }
@@ -1610,24 +1649,19 @@ Authorization: Bearer {token}
 
 ---
 
-## 9.6 数据统计
+## 9.6 获取统计数据
 
 **接口标识：** SRS-INT-API-033
 
 ### 接口信息
 
 - **路径：** `GET /api/v1/admin/statistics`
-- **描述：** 获取统计数据
+- **描述：** 获取后台统计数据
 - **权限：** 需要管理员权限
 
 ### 请求参数
 
-**查询参数：**
-
-| 参数        | 类型     | 必填  | 说明               |
-| --------- | ------ | --- | ---------------- |
-| startDate | String | 是   | 开始日期（yyyy-MM-dd） |
-| endDate   | String | 是   | 结束日期（yyyy-MM-dd） |
+无
 
 ### 响应示例
 
@@ -1638,18 +1672,10 @@ Authorization: Bearer {token}
   "code": 200,
   "message": "success",
   "data": {
-    "totalSales": 100000.00,
-    "totalOrders": 500,
-    "totalUsers": 1200,
-    "totalProducts": 150,
-    "dailySales": [
-      {"date": "2026-03-01", "sales": 5000.00},
-      {"date": "2026-03-02", "sales": 6000.00}
-    ],
-    "categoryRanking": [
-      {"categoryId": 1, "categoryName": "绿茶", "sales": 50000.00},
-      {"categoryId": 2, "categoryName": "红茶", "sales": 30000.00}
-    ]
+    "totalUsers": 100,
+    "totalProducts": 50,
+    "totalOrders": 200,
+    "totalSales": 50000.00
   },
   "timestamp": 1711872000000
 }
@@ -1940,7 +1966,7 @@ Authorization: Bearer {token}
 
 # 12. 错误码说明
 
-## 10.1 通用错误码
+## 12.1 通用错误码
 
 | 错误码 | 说明        |
 | --- | --------- |
@@ -1951,13 +1977,12 @@ Authorization: Bearer {token}
 | 404 | 请求的资源不存在  |
 | 500 | 服务器内部错误   |
 
-## 10.2 业务错误码
+## 12.2 业务错误码
 
 | 错误码  | 说明         |
 | ---- | ---------- |
 | 1001 | 用户名或密码错误   |
 | 1002 | 用户已被禁用     |
-| 1003 | 验证码错误或已过期  |
 | 2001 | 商品已下架      |
 | 2002 | 商品库存不足     |
 | 3001 | 购物车为空      |
@@ -1967,14 +1992,13 @@ Authorization: Bearer {token}
 | 4003 | 订单已取消      |
 | 4004 | 订单已支付      |
 | 5001 | 支付失败       |
-| 5002 | 支付超时       |
 | 6001 | 收货地址不存在    |
 
 ---
 
-# 11. 附录
+# 13. 附录
 
-## 11.1 数据字典
+## 13.1 数据字典
 
 ### 订单状态
 
@@ -1985,14 +2009,35 @@ Authorization: Bearer {token}
 | 2   | 待收货  | 已发货，等待确认收货    |
 | 3   | 已完成  | 已确认收货，交易完成    |
 | 4   | 已取消  | 订单已取消         |
-| 5   | 已关闭  | 订单已关闭（超时未支付等） |
 
 ### 支付方式
 
 | 支付类型   | 说明   |
 | ------ | ---- |
-| WECHAT | 微信支付 |
-| ALIPAY | 支付宝  |
+| 1 | 微信支付 |
+| 2 | 支付宝  |
+
+### 用户性别
+
+| 值 | 说明 |
+|----|------|
+| 0 | 未知 |
+| 1 | 男 |
+| 2 | 女 |
+
+### 商品状态
+
+| 值 | 说明 |
+|----|------|
+| 0 | 下架 |
+| 1 | 上架 |
+
+### 管理员角色
+
+| 值 | 说明 |
+|----|------|
+| 1 | 超级管理员 |
+| 2 | 普通管理员 |
 
 ---
 
