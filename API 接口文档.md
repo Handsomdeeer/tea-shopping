@@ -2,8 +2,8 @@
 
 ## ChaoCha E-Commerce System - API Documentation
 
-**版本号：** V1.0  
-**日期：** 2026 年 3 月 31 日  
+**版本号：** V1.1  
+**日期：** 2026 年 5 月 5 日  
 **基础路径：** `/api/v1`
 
 ---
@@ -274,7 +274,7 @@ Authorization: Bearer {token}
 
 **请求示例：**
 
-```json
+``json
 请求参数
 {
     "userId": 2    
@@ -1039,6 +1039,126 @@ Authorization: Bearer {token}
 ```json
 {
   "code": 200,
+  "message": "取消成功",
+  "data": null,
+  "timestamp": 1711872000000
+}
+```
+
+---
+
+## 6.5 确认支付
+
+**接口标识：** SRS-INT-API-022
+
+### 接口信息
+
+- **路径：** `PUT /api/v1/orders/{orderId}/pay`
+- **描述：** 用户确认支付订单
+- **权限：** 需要认证
+
+### 请求参数
+
+**路径参数：**
+
+- orderId：订单 ID
+
+### 响应示例
+
+**成功响应：**
+
+```json
+{
+  "code": 200,
+  "message": "支付成功",
+  "data": null,
+  "timestamp": 1711872000000
+}
+```
+
+---
+
+## 6.6 确认收货
+
+**接口标识：** SRS-INT-API-023
+
+### 接口信息
+
+- **路径：** `PUT /api/v1/orders/{orderId}/confirm`
+- **描述：** 用户确认收到货物
+- **权限：** 需要认证
+
+### 请求参数
+
+**路径参数：**
+
+- orderId：订单 ID
+
+### 响应示例
+
+**成功响应：**
+
+```json
+{
+  "code": 200,
+  "message": "确认收货成功",
+  "data": null,
+  "timestamp": 1711872000000
+}
+```
+
+---
+
+## 6.7 管理员发货
+
+**接口标识：** SRS-INT-API-024
+
+### 接口信息
+
+- **路径：** `PUT /api/v1/admin/orders/{orderId}/ship`
+- **描述：** 管理员处理订单发货
+- **权限：** 需要管理员认证
+
+### 请求参数
+
+**路径参数：**
+
+- orderId：订单 ID
+
+**请求体（JSON）：**
+
+| 字段              | 类型     | 必填  | 说明       |
+| ---------------- | ------ | --- | -------- |
+| logisticsCompany | String | 是   | 物流公司名称    |
+| logisticsNo      | String | 是   | 物流单号      |
+
+**请求示例：**
+
+```json
+{
+  "logisticsCompany": "顺丰速运",
+  "logisticsNo": "SF1234567890"
+}
+```
+
+### 响应示例
+
+**成功响应：**
+
+``json
+{
+  "code": 200,
+  "message": "发货成功",
+  "data": null,
+  "timestamp": 1711872000000
+}
+```
+
+**成功响应：**
+
+``json
+{
+  "code": 200,
   "message": "订单已取消",
   "data": null,
   "timestamp": 1711872000000
@@ -1537,7 +1657,288 @@ Authorization: Bearer {token}
 
 ---
 
-# 10. 错误码说明
+# 10. 轮播图模块 (Banner)
+
+## 10.1 获取轮播图列表
+
+**接口标识：** SRS-INT-API-034
+
+### 接口信息
+
+- **路径：** `GET /api/v1/banners`
+- **描述：** 获取启用状态的轮播图列表（用于首页轮播）
+- **权限：** 公开接口
+
+### 请求参数
+
+无
+
+### 响应示例
+
+**成功响应：**
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "name": "春季新品",
+      "imageUrl": "https://example.com/banner/spring.jpg",
+      "sortOrder": 1,
+      "create_time": "2026-03-01 10:00:00"
+    },
+    {
+      "id": 2,
+      "name": "会员专享",
+      "imageUrl": "https://example.com/banner/member.jpg",
+      "sortOrder": 2,
+      "create_time": "2026-03-02 10:00:00"
+    }
+  ],
+  "timestamp": 1711872000000
+}
+```
+
+---
+
+## 10.2 获取广告图列表
+
+**接口标识：** SRS-INT-API-035
+
+### 接口信息
+
+- **路径：** `GET /api/v1/banners/ad`
+- **描述：** 获取广告图列表（用于首页广告位）
+- **权限：** 公开接口
+
+### 请求参数
+
+无
+
+### 响应示例
+
+**成功响应：**
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 101,
+      "name": "满减活动",
+      "imageUrl": "https://example.com/ad/discount.jpg",
+      "sortOrder": 1,
+      "create_time": "2026-03-15 10:00:00"
+    }
+  ],
+  "timestamp": 1711872000000
+}
+```
+
+---
+
+# 11. 后台管理 - 轮播图管理
+
+## 11.1 获取轮播图列表（管理员）
+
+**接口标识：** SRS-INT-API-036
+
+### 接口信息
+
+- **路径：** `GET /api/v1/admin/banners`
+- **描述：** 获取所有轮播图（含禁用状态）
+- **权限：** 需要管理员权限
+
+### 请求参数
+
+无
+
+### 响应示例
+
+**成功响应：**
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "name": "春季新品",
+      "imageUrl": "https://example.com/banner/spring.jpg",
+      "type": "BANNER",
+      "sortOrder": 1,
+      "status": 1,
+      "create_time": "2026-03-01 10:00:00",
+      "update_time": "2026-03-01 10:00:00"
+    },
+    {
+      "id": 2,
+      "name": "会员专享",
+      "imageUrl": "https://example.com/banner/member.jpg",
+      "type": "BANNER",
+      "sortOrder": 2,
+      "status": 1,
+      "create_time": "2026-03-02 10:00:00",
+      "update_time": "2026-03-02 10:00:00"
+    }
+  ],
+  "timestamp": 1711872000000
+}
+```
+
+---
+
+## 11.2 添加轮播图
+
+**接口标识：** SRS-INT-API-037
+
+### 接口信息
+
+- **路径：** `POST /api/v1/admin/banners`
+- **描述：** 添加新的轮播图
+- **权限：** 需要管理员权限
+
+### 请求参数
+
+**请求体（JSON）：**
+
+| 字段        | 类型     | 必填  | 说明       |
+| --------- | ------ | --- | -------- |
+| name      | String | 是   | 图片名称     |
+| imageUrl  | String | 是   | 图片 URL   |
+| type      | String | 是   | 图片类型（BANNER/AD） |
+| sortOrder | Integer | 是   | 排序号（越小越靠前） |
+| status    | Integer | 是   | 状态（0：禁用，1：启用） |
+
+**请求示例：**
+
+```json
+{
+  "name": "新品上市",
+  "imageUrl": "https://example.com/banner/new.jpg",
+  "type": "BANNER",
+  "sortOrder": 3,
+  "status": 1
+}
+```
+
+### 响应示例
+
+**成功响应：**
+
+```json
+{
+  "code": 200,
+  "message": "添加成功",
+  "data": null,
+  "timestamp": 1711872000000
+}
+```
+
+---
+
+## 11.3 更新轮播图
+
+**接口标识：** SRS-INT-API-038
+
+### 接口信息
+
+- **路径：** `PUT /api/v1/admin/banners/{id}`
+- **描述：** 更新轮播图信息
+- **权限：** 需要管理员权限
+
+### 请求参数
+
+**路径参数：**
+
+- id：轮播图 ID
+
+**请求体（JSON）：** 同添加轮播图
+
+### 响应示例
+
+**成功响应：**
+
+```json
+{
+  "code": 200,
+  "message": "更新成功",
+  "data": null,
+  "timestamp": 1711872000000
+}
+```
+
+---
+
+## 11.4 删除轮播图
+
+**接口标识：** SRS-INT-API-039
+
+### 接口信息
+
+- **路径：** `DELETE /api/v1/admin/banners/{id}`
+- **描述：** 删除轮播图
+- **权限：** 需要管理员权限
+
+### 请求参数
+
+**路径参数：**
+
+- id：轮播图 ID
+
+### 响应示例
+
+**成功响应：**
+
+```json
+{
+  "code": 200,
+  "message": "删除成功",
+  "data": null,
+  "timestamp": 1711872000000
+}
+```
+
+---
+
+## 11.5 上传轮播图
+
+**接口标识：** SRS-INT-API-040
+
+### 接口信息
+
+- **路径：** `POST /api/v1/admin/banners/upload`
+- **描述：** 上传轮播图文件到 OSS 存储
+- **权限：** 需要管理员权限
+
+### 请求参数
+
+**表单数据：**
+
+| 字段  | 类型     | 必填  | 说明   |
+| --- | ------ | --- | ---- |
+| file | File   | 是   | 图片文件 |
+
+### 响应示例
+
+**成功响应：**
+
+```json
+{
+  "code": 200,
+  "message": "上传成功",
+  "data": "https://example.com/banner/uploaded.jpg",
+  "timestamp": 1711872000000
+}
+```
+
+---
+
+# 12. 错误码说明
 
 ## 10.1 通用错误码
 

@@ -1,5 +1,8 @@
 # 潮茶商城系统 - 后端代码实现说明
 
+**版本号：** V1.1  
+**日期：** 2026 年 5 月 5 日  
+
 ## 项目概述
 基于 Spring Boot 4.0.4 + MyBatis Plus 的茶叶电商平台后端系统
 
@@ -182,14 +185,15 @@ tea-shopping/
     └── schema.sql              # 数据库初始化脚本
 ```
 
-## 待完成功能 ⏳
-以下功能已设计但尚未实现：
-1. 订单模块（OrderController, OrderService）
-2. 支付模块（PaymentController, PaymentService）
-3. 评价模块（ReviewController, ReviewService）
-4. 地址管理模块（AddressController, AddressService）
-5. 后台管理模块（AdminController）
-6. 分类管理（CategoryService）
+## 当前功能状态 ✅
+以下功能模块已实现并可正常使用：
+1. 订单模块（OrderController, OrderService）✅
+2. 支付模块（PaymentController, PaymentService）✅
+3. 评价模块（ReviewController, ReviewService）✅
+4. 地址管理模块（AddressController, AddressService）✅
+5. 后台管理模块（AdminController）✅
+6. 分类管理（CategoryService）✅
+7. 轮播图管理（BannerController, BannerImageController）✅
 
 ## 注意事项
 1. 密码加密目前使用 MD5+ 盐值，生产环境建议使用 BCrypt
